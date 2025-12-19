@@ -1,71 +1,82 @@
 #include "renderer.h"
 #include "config.h"
+#include "tinyutils.h"
 
-static void renderMap(SDL_Renderer* renderer, Map* map) {
+void draw_pixel(int x, int y, color_t color, char* pixels)
+{
+    pixels[(y * 300 + x) * 4 + 0] = color.r;
+    pixels[(y * 300 + x) * 4 + 1] = color.g;
+    pixels[(y * 300 + x) * 4 + 2] = color.b;
+    pixels[(y * 300 + x) * 4 + 3] = color.a;
+}
+
+void render_tile(vec2_t w, vec2_t h, color_t color, char* pixels)
+{
+    for (int y = h.x; y < h.y; y++) {
+        for (int x = w.x; x < w.y; x++) {
+            draw_pixel(x, y, color, pixels);
+        }
+    }
+} 
+
+void renderMap(char* pixels, Map* map) {
     if (!map) return;
 
-    float tileWidth = (float)SCREEN_WIDTH / map->width;
-    float tileHeight = (float)SCREEN_HEIGHT / map->height;
+    float tileWidth = (float)TEXTURE_DEMENSIONS/map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS/map->height;
+
+    printf("%f\n", tileWidth);
 
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
-            SDL_Rect rect = { (int)(x * tileWidth), (int)(y * tileHeight), (int)tileWidth, (int)tileHeight };
+            vec2_t w = {x * tileWidth, x * tileWidth + tileWidth};
+            vec2_t h = {y * tileHeight, y * tileHeight + tileHeight};
             switch (map->tile_types[y][x]) {
                 case TILE_WALL_INDESTRUCTIBLE:
-                    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255); // Dark grey
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {50, 50, 50, 255}, pixels);
                     break;
                 case TILE_WALL:
-                    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255); // Grey
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {100, 100, 100, 255}, pixels);
                     break;
                 case TILE_WALL_TOP_EDGE:
-                    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Red
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {255, 0, 0, 255}, pixels);
                     break;
                 case TILE_WALL_BOTTOM_EDGE:
-                    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Green
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {0, 255, 0, 255}, pixels);
                     break;
                 case TILE_WALL_LEFT_EDGE:
-                    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Blue
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {0, 0, 255, 255}, pixels);
                     break;
                 case TILE_WALL_RIGHT_EDGE:
-                    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); // Yellow
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {255, 255, 0, 255}, pixels);
                     break;
                 case TILE_WALL_TOP_LEFT_CORNER:
-                    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255); // Magenta
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {255, 0, 255, 255}, pixels);
                     break;
                 case TILE_WALL_TOP_RIGHT_CORNER:
-                    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255); // Cyan
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {0, 255, 255, 255}, pixels);
                     break;
                 case TILE_WALL_BOTTOM_LEFT_CORNER:
-                    SDL_SetRenderDrawColor(renderer, 255, 128, 0, 255); // Orange
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {255, 128, 0, 255}, pixels);
                     break;
                 case TILE_WALL_BOTTOM_RIGHT_CORNER:
-                    SDL_SetRenderDrawColor(renderer, 128, 0, 255, 255); // Purple
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {128, 0, 255, 255}, pixels);
                     break;
                 case TILE_WALL_INNER_TOP_LEFT_CORNER:
                 case TILE_WALL_INNER_TOP_RIGHT_CORNER:
                 case TILE_WALL_INNER_BOTTOM_LEFT_CORNER:
                 case TILE_WALL_INNER_BOTTOM_RIGHT_CORNER:
-                     SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255); // Light Grey
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {200, 200, 200, 255}, pixels);
+                    // color_t col = { 200, 200, 200, 255}; // Light Grey
                     break;
                 case TILE_CHECKPOINT:
-                    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Bright Green for checkpoint
-                    SDL_RenderFillRect(renderer, &rect);
+                    render_tile(w, h, {0, 255, 0, 255}, pixels);
+                    // color_t col = { 0, 255, 0, 255}; // Bright Green for checkpoint
                     break;
                 case TILE_SPIKE:
                     {
                         // Draw spike as an upward-pointing triangle
-                        SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255); // Dark red color for spikes
+                        // SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255); // Dark red color for spikes
                         
                         // Define triangle vertices (bottom-left, bottom-right, top-center)
                         int baseY = (int)((y + 1) * tileHeight);  // Bottom of the tile
@@ -79,7 +90,7 @@ static void renderMap(SDL_Renderer* renderer, Map* map) {
                             float progress = (float)(sy - tipY) / (baseY - tipY);
                             int lineLeftX = centerX - (int)(progress * (centerX - leftX));
                             int lineRightX = centerX + (int)(progress * (rightX - centerX));
-                            SDL_RenderDrawLine(renderer, lineLeftX, sy, lineRightX, sy);
+                            // SDL_RenderDrawLine(renderer, lineLeftX, sy, lineRightX, sy);
                         }
                     }
                     break;
@@ -100,53 +111,24 @@ static void renderPlayer(SDL_Renderer* renderer, Player* player) {
     SDL_RenderFillRect(renderer, &playerRect);
 }
 
-GameRenderer* initRenderer(const char* title, int width, int height) {
-    GameRenderer* gameRenderer = (GameRenderer*)malloc(sizeof(GameRenderer));
-    if (!gameRenderer) {
-        printf("Failed to allocate GameRenderer\n");
-        return NULL;
-    }
 
-    gameRenderer->window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN);
-    if (!gameRenderer->window) {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-        free(gameRenderer);
-        return NULL;
-    }
+// void renderFrame(GameRenderer gameRenderer, Map* map, Player* player) {
 
-    gameRenderer->renderer = SDL_CreateRenderer(gameRenderer->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!gameRenderer->renderer) {
-        printf("Renderer could not be created! SDL Error: %s\n", SDL_GetError());
-        SDL_DestroyWindow(gameRenderer->window);
-        free(gameRenderer);
-        return NULL;
-    }
+//     // Render game objects
+//     renderMap(gameRenderer, map);
+//     // renderPlayer(gameRenderer.renderer, player);
 
-    return gameRenderer;
-}
+//     // Present the frame
+//     SDL_RenderPresent(gameRenderer.renderer);
+// }
 
-void renderFrame(GameRenderer* gameRenderer, Map* map, Player* player) {
-    if (!gameRenderer) return;
-
-    // Set background color
-    SDL_SetRenderDrawColor(gameRenderer->renderer, 25, 25, 40, 255);
-    SDL_RenderClear(gameRenderer->renderer);
-
-    // Render game objects
-    renderMap(gameRenderer->renderer, map);
-    renderPlayer(gameRenderer->renderer, player);
-
-    // Present the frame
-    SDL_RenderPresent(gameRenderer->renderer);
-}
-
-void destroyRenderer(GameRenderer* gameRenderer) {
-    if (!gameRenderer) return;
-    if (gameRenderer->renderer) {
-        SDL_DestroyRenderer(gameRenderer->renderer);
-    }
-    if (gameRenderer->window) {
-        SDL_DestroyWindow(gameRenderer->window);
-    }
-    free(gameRenderer);
-}
+// void destroyRenderer(GameRenderer* gameRenderer) {
+//     if (!gameRenderer) return;
+//     if (gameRenderer->renderer) {
+//         SDL_DestroyRenderer(gameRenderer->renderer);
+//     }
+//     if (gameRenderer->window) {
+//         SDL_DestroyWindow(gameRenderer->window);
+//     }
+//     free(gameRenderer);
+// }

@@ -80,6 +80,7 @@ Map* loadMap(const char* filename) {
 
     // Second pass to read data
     rewind(file);
+    // printf("ff\n");
     int current_row = 0;
     while (fgets(line, sizeof(line), file) && current_row < height) {
         line[strcspn(line, "\r\n")] = 0;
@@ -94,12 +95,10 @@ Map* loadMap(const char* filename) {
         strcpy(map->data[current_row], line);
         current_row++;
     }
-
     fclose(file);
 
     // Third pass to analyze the map and determine tile types
     analyzeMap(map);
-
     return map;
 }
 

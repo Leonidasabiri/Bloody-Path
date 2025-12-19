@@ -26,7 +26,7 @@ $(TARGET): $(OBJS)
 
 # Compiling rule: create object files from .cpp source files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@ -I${USER_ZDOTDIR}/glew-2.1.0/include -lSDL2 -lSDL2main -lGL -lX11  ${USER_ZDOTDIR}/glew-2.1.0/lib/libGLEW.a
 
 # Clean rule: remove generated files
 .PHONY: clean
