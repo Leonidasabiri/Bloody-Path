@@ -3,9 +3,9 @@
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
-#define PLAYER_SPEED 5.0f
-#define GRAVITY 0.9f
-#define JUMP_STRENGTH -12.0f
+#define PLAYER_SPEED 2.0f
+#define GRAVITY 0.5f
+#define JUMP_STRENGTH -7.0f
 
 #endif // CONFIG_H
 

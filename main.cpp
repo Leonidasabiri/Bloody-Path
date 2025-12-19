@@ -15,12 +15,76 @@
 #include "config.h"
 #include "map_parser.h"
 #include "renderer.h"
+#include "player.h"
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
 const char *game_name = "Bloody Path";
 
+
+void findPlayerStart(Map* map, Player* player) {
+    if (!map || !player) return;
+    float tileWidth = (float)300 / map->width;
+    float tileHeight = (float)300 / map->height;
+
+    for (int y = 0; y < map->height; ++y) {
+        for (int x = 0; x < map->width; ++x) {
+            if (map->data[y][x] == 'P') {
+                player->x = x * tileWidth;
+                player->y = y * tileHeight;
+                player->width = tileWidth / 2;
+                player->height = tileHeight;
+                player->vy = 0;
+                player->onGround = false;
+                return;
+            }
+        }
+    }
+    player->x = 300/2;
+    player->y = 300/2;
+    player->width = tileWidth/2;
+    player->height = tileHeight;
+    player->vy = 0;
+    player->onGround = false;
+}
+
+bool checkWallCollision(float x, float y, Map* map) {
+    if (!map) return true; // Treat no map as a solid wall
+
+    float tileWidth = (float)300 / map->width;
+    float tileHeight = (float)300 / map->height;
+
+    int mapX = (int)(x / tileWidth);
+    int mapY = (int)(y / tileHeight);
+
+    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
+        return true; // Collide with boundaries
+    }
+
+    char tile = map->data[mapY][mapX];
+    return tile == 'W' || tile == '#';
+}
+
+bool checkCheckpointCollision(Player* player, Map* map) {
+    if (!map) return false;
+
+    float tileWidth = (float)300 / map->width;
+    float tileHeight = (float)300 / map->height;
+
+    // Get player center
+    float playerCenterX = player->x + player->width / 2;
+    float playerCenterY = player->y + player->height / 2;
+
+    int mapX = (int)(playerCenterX / tileWidth);
+    int mapY = (int)(playerCenterY / tileHeight);
+
+    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
+        return false;
+    }
+
+    return map->tile_types[mapY][mapX] == TILE_CHECKPOINT;
+}
 
 shader_t shader(const char* path, shader_type type)
 {
@@ -82,16 +146,16 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, char* data
 
     // 
     canvas.uvs[0] = 1;
-    canvas.uvs[1] = 1;
+    canvas.uvs[1] = 0;
 
     canvas.uvs[2] = 1;
-    canvas.uvs[3] = 0;
+    canvas.uvs[3] = 1;
 
     canvas.uvs[4] = 0;
-    canvas.uvs[5] = 0;
+    canvas.uvs[5] = 1;
 
     canvas.uvs[6] = 0;
-    canvas.uvs[7] = 1;
+    canvas.uvs[7] = 0;
 
     canvas.indices[0] = 0;
     canvas.indices[1] = 1;
@@ -220,16 +284,31 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    renderMap(pixels, map);
+    Player player;
+    findPlayerStart(map, &player);
+    player.touchedSpike = false;
+    player.spikeTimer = 0;
+
+    int mousex, mousey;
+
+    float time = 0;
+
+    const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
     while (1) {
         int w, h;
+        SDL_GetMouseState(&mousex, &mousey);
         SDL_GetWindowSize(window, &w, &h);
         glViewport(0, 0, w, h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         SDL_Event ev;
+
+        time += 0.1;
+
+        renderMap(pixels, map);
+        renderPlayer(pixels, &player);
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 300, 300, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         while (SDL_PollEvent(&ev))
@@ -245,13 +324,79 @@ int main(int argc, char* argv[]) {
                         break;    
                     case SDL_SCANCODE_ESCAPE:
                         return 0;  
+                    case SDL_SCANCODE_UP:
+                    case SDL_SCANCODE_W:
+                        if (player.onGround) {
+                            player.vy = JUMP_STRENGTH;
+                            player.onGround = false;
+                        }
+                        break;
                     default:
                         break;
                 }
             }
         }
+
+// --- Horizontal Movement ---
+        float nextX = player.x;
+        if (keystates[SDL_SCANCODE_LEFT] || keystates[SDL_SCANCODE_A]) {
+            nextX -= PLAYER_SPEED;
+        }
+        if (keystates[SDL_SCANCODE_RIGHT] || keystates[SDL_SCANCODE_D]) {
+            nextX += PLAYER_SPEED;
+        }
+
+        // Horizontal collision
+        if (nextX > player.x) { // Moving right
+            if (!checkWallCollision(nextX + player.width, player.y, map) && !checkWallCollision(nextX + player.width, player.y + player.height - 1, map)) {
+                player.x = nextX;
+            }
+        } else if (nextX < player.x) { // Moving left
+            if (!checkWallCollision(nextX, player.y, map) && !checkWallCollision(nextX, player.y + player.height - 1, map)) {
+                player.x = nextX;
+            }
+        }
+
+        // --- Vertical Movement (Gravity) ---
+        player.vy += GRAVITY;
+        float nextY = player.y + player.vy;
+
+        player.onGround = false; // Assume not on ground until proven otherwise
+
+        if (player.vy > 0) { // Moving down
+            if (checkWallCollision(player.x, nextY + player.height, map) || checkWallCollision(player.x + player.width - 1, nextY + player.height, map)) {
+                // Snap to ground
+                float tileHeight = (float)300 / map->height;
+                player.y = (int)((nextY + player.height) / tileHeight) * tileHeight - player.height;
+                player.vy = 0;
+                player.onGround = true;
+            } else {
+                player.y = nextY;
+            }
+        } else if (player.vy < 0) { // Moving up
+            if (checkWallCollision(player.x, nextY, map) || checkWallCollision(player.x + player.width - 1, nextY, map)) {
+                player.vy = 0;
+            } else {
+                player.y = nextY;
+            }
+        }
+
         SDL_SetWindowFullscreen(window, win_mode);
         render_quad_screen(canvas);
+        GLint mouse = glGetUniformLocation(canvas.shader_program, "mouse");
+        GLint time_u = glGetUniformLocation(canvas.shader_program, "time");
+        GLint player_position = glGetUniformLocation(canvas.shader_program, "player_position");
+        GLint resolution = glGetUniformLocation(canvas.shader_program, "resolution");
+        info_log_shader(mouse);
+        info_log_shader(resolution);
+        info_log_shader(player_position);
+
+
+        glUniform2f(player_position, (float)player.x/((float)300/2) - 1, -(float)player.y/((float)300/2) + 1);
+        glUniform2f(mouse, (float)mousex/((float)w/2) - 1, -(float)mousey/((float)h/2) + 1);
+        glUniform2f(resolution, w, h);
+        glUniform1f(time_u, time);
+
         SDL_GL_SwapWindow(window);
     }
 

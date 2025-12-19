@@ -88,5 +88,6 @@ void renderFrame(GameRenderer gameRenderer, Map* map, Player* player);
 void destroyRenderer(GameRenderer* gameRenderer);
 void renderMap(char* pixels, Map* map);
 void draw_pixel(int x, int y, color_t color, char* pixels);
+void renderPlayer(char* pixels, Player* player);
 
 #endif // RENDERER_H

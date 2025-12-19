@@ -22,10 +22,8 @@ void render_tile(vec2_t w, vec2_t h, color_t color, char* pixels)
 void renderMap(char* pixels, Map* map) {
     if (!map) return;
 
-    float tileWidth = (float)TEXTURE_DEMENSIONS/map->width;
-    float tileHeight = (float)TEXTURE_DEMENSIONS/map->height;
-
-    printf("%f\n", tileWidth);
+    int tileWidth =  TEXTURE_DEMENSIONS/map->width;
+    int tileHeight =  TEXTURE_DEMENSIONS/map->height;
 
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
@@ -71,7 +69,6 @@ void renderMap(char* pixels, Map* map) {
                     break;
                 case TILE_CHECKPOINT:
                     render_tile(w, h, {0, 255, 0, 255}, pixels);
-                    // color_t col = { 0, 255, 0, 255}; // Bright Green for checkpoint
                     break;
                 case TILE_SPIKE:
                     {
@@ -95,20 +92,26 @@ void renderMap(char* pixels, Map* map) {
                     }
                     break;
                 case TILE_EMPTY:
+                    render_tile(w, h, {0, 0, 0, 255}, pixels);
+                    break;
                 case TILE_PLAYER_START:
                 default:
-                    // Do nothing for empty or player start tiles
+                    render_tile(w, h, {0, 0, 0, 255}, pixels);
                     break;
             }
         }
     }
 }
 
-static void renderPlayer(SDL_Renderer* renderer, Player* player) {
-    if (!player) return;
-    SDL_Rect playerRect = { (int)player->x, (int)player->y, (int)player->width, (int)player->height };
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Red placeholder
-    SDL_RenderFillRect(renderer, &playerRect);
+void renderPlayer(char* pixels, Player* player) {
+    if (!player) 
+    {
+        return;
+    }
+    vec2_t playerpos = { (int)player->x, (int)player->x + (int)player->width} ;
+    vec2_t player_dimension = {(int)player->y, (int)player->y + (int)player->height };
+
+    render_tile(playerpos, player_dimension, {255, 0, 0, 255}, pixels);
 }
 
 
