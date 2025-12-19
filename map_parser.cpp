@@ -143,6 +143,10 @@ static void analyzeMap(Map* map) {
                 map->tile_types[y][x] = TILE_CHECKPOINT;
                 continue;
             }
+            if (current_char == 'S') {
+                map->tile_types[y][x] = TILE_SPIKE;
+                continue;
+            }
             if (current_char == '.') {
                 map->tile_types[y][x] = TILE_EMPTY;
                 continue;

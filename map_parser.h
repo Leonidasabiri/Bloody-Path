@@ -6,6 +6,7 @@ typedef enum {
     TILE_EMPTY,
     TILE_PLAYER_START,
     TILE_CHECKPOINT,
+    TILE_SPIKE,
     TILE_WALL_INDESTRUCTIBLE,
 
     // Auto-tiled wall pieces

@@ -62,6 +62,27 @@ static void renderMap(SDL_Renderer* renderer, Map* map) {
                     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Bright Green for checkpoint
                     SDL_RenderFillRect(renderer, &rect);
                     break;
+                case TILE_SPIKE:
+                    {
+                        // Draw spike as an upward-pointing triangle
+                        SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255); // Dark red color for spikes
+                        
+                        // Define triangle vertices (bottom-left, bottom-right, top-center)
+                        int baseY = (int)((y + 1) * tileHeight);  // Bottom of the tile
+                        int tipY = (int)(y * tileHeight);          // Top of the tile
+                        int leftX = (int)(x * tileWidth);
+                        int rightX = (int)((x + 1) * tileWidth);
+                        int centerX = (int)((x + 0.5f) * tileWidth);
+                        
+                        // Draw filled triangle using scanline method
+                        for (int sy = tipY; sy <= baseY; sy++) {
+                            float progress = (float)(sy - tipY) / (baseY - tipY);
+                            int lineLeftX = centerX - (int)(progress * (centerX - leftX));
+                            int lineRightX = centerX + (int)(progress * (rightX - centerX));
+                            SDL_RenderDrawLine(renderer, lineLeftX, sy, lineRightX, sy);
+                        }
+                    }
+                    break;
                 case TILE_EMPTY:
                 case TILE_PLAYER_START:
                 default:

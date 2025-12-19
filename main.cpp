@@ -92,6 +92,26 @@ bool checkCheckpointCollision(Player* player, Map* map) {
     return map->tile_types[mapY][mapX] == TILE_CHECKPOINT;
 }
 
+bool checkSpikeCollision(Player* player, Map* map) {
+    if (!map) return false;
+
+    float tileWidth = (float)SCREEN_WIDTH / map->width;
+    float tileHeight = (float)SCREEN_HEIGHT / map->height;
+
+    // Get player center
+    float playerCenterX = player->x + player->width / 2;
+    float playerCenterY = player->y + player->height / 2;
+
+    int mapX = (int)(playerCenterX / tileWidth);
+    int mapY = (int)(playerCenterY / tileHeight);
+
+    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
+        return false;
+    }
+
+    return map->tile_types[mapY][mapX] == TILE_SPIKE;
+}
+
 int main(int argc, char* argv[]) {
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -128,6 +148,8 @@ int main(int argc, char* argv[]) {
 
     Player player;
     findPlayerStart(map, &player);
+    player.touchedSpike = false;
+    player.spikeTimer = 0;
 
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
@@ -204,6 +226,23 @@ int main(int argc, char* argv[]) {
         }
 
         SDL_SetWindowFullscreen(gameRenderer->window, win_mode);
+
+        // Check for spike collision and start timer
+        if (checkSpikeCollision(&player, map)) {
+            if (!player.touchedSpike) {
+                // First time touching spike - start the timer
+                player.touchedSpike = true;
+                player.spikeTimer = SDL_GetTicks();
+                printf("Spike touched! Timer started.\n");
+            }
+        }
+
+        // Update and display timer if spike was touched
+        if (player.touchedSpike) {
+            Uint32 elapsedTime = SDL_GetTicks() - player.spikeTimer;
+            float seconds = elapsedTime / 1000.0f;
+            printf("Time since spike touch: %.2f seconds\n", seconds);
+        }
 
         // Rendering is now handled by the renderer module
         renderFrame(gameRenderer, map, &player);
