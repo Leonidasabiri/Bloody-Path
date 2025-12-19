@@ -1,0 +1,15 @@
+WWWWWWWWWWWWWWWWWWWW
+W..................W
+W.P................W
+W.#####............W
+W..................W
+W..................W
+W........#####.....W
+W..................W
+W..................W
+W...#####..........W
+W..................W
+W..................C
+WWWWWWWWWWWWWWWWWWWW
+WWWWWWWWWWWWWWWWWWWW
+WWWWWWWWWWWWWWWWWWWW

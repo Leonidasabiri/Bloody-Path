@@ -12,6 +12,9 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 #include "tinyutils.h"
+#include "config.h"
+#include "map_parser.h"
+#include "renderer.h"
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
@@ -31,39 +34,6 @@ void draw_pixel(int x, int y, color_t color, char* pixels)
     pixels[(y * 300 + x) * 4 + 2] = color.b;
     pixels[(y * 300 + x) * 4 + 3] = color.a;
 }
-
-typedef enum{
-    VERTEX = GL_VERTEX_SHADER, FRAGEMENT = GL_FRAGMENT_SHADER
-} shader_type;
-
-typedef struct 
-{
-    shader_type type;
-    GLuint shader_id;
-}shader_t;
-
-typedef struct 
-{
-    float   vertecies[12];
-    float   uvs[8];
-    float   stride;
-    int     indices[6];
-    GLuint  vertex_buffer;
-    GLuint  vertex_array;
-    GLuint  uv_buffer;
-    GLuint  indecies_buffer;
-    GLuint  shader_program;
-    GLuint  vertex_shader;
-    GLuint  fragment_shader;
-    GLuint  texture;
-    GLuint  frame_buffer;
-}window_canvas_t;
-
-typedef enum
-{
-    window_normal  = SDL_WINDOW_SHOWN,
-    window_full_screen  = SDL_WINDOW_FULLSCREEN_DESKTOP
-}  windowmode_t;
 
 shader_t shader(const char* path, shader_type type)
 {
@@ -188,10 +158,6 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, char* data
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-
-    // Generate framebuffer
-    
-
     // shaders linking
     glAttachShader(canvas.shader_program, canvas.vertex_shader);
     glAttachShader(canvas.shader_program, canvas.fragment_shader);
@@ -211,6 +177,100 @@ void render_quad_screen(window_canvas_t canvas_quad)
     glUseProgram(canvas_quad.shader_program);
     glBindVertexArray(canvas_quad.vertex_array);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+
+void render_tile(vec2_t w, vec2_t h, color_t color, char* pixels)
+{
+    for (int y = h.x; y < h.y; y++) {
+        for (int x = w.x; x < w.y; x++) {
+            draw_pixel(x, y, color, pixels);
+        }
+    }
+} 
+
+
+void renderMap(char* pixels, Map* map) {
+    if (!map) return;
+
+    float tileWidth = (float)TEXTURE_DEMENSIONS/map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS/map->height;
+
+    printf("%f\n", tileWidth);
+
+    for (int y = 0; y < map->height; ++y) {
+        for (int x = 0; x < map->width; ++x) {
+            vec2_t w = {x * tileWidth, x * tileWidth + tileWidth};
+            vec2_t h = {y * tileHeight, y * tileHeight + tileHeight};
+            switch (map->tile_types[y][x]) {
+                case TILE_WALL_INDESTRUCTIBLE:
+                    render_tile(w, h, {50, 50, 50, 255}, pixels);
+                    break;
+                case TILE_WALL:
+                    render_tile(w, h, {100, 100, 100, 255}, pixels);
+                    break;
+                case TILE_WALL_TOP_EDGE:
+                    render_tile(w, h, {255, 0, 0, 255}, pixels);
+                    break;
+                case TILE_WALL_BOTTOM_EDGE:
+                    render_tile(w, h, {0, 255, 0, 255}, pixels);
+                    break;
+                case TILE_WALL_LEFT_EDGE:
+                    render_tile(w, h, {0, 0, 255, 255}, pixels);
+                    break;
+                case TILE_WALL_RIGHT_EDGE:
+                    render_tile(w, h, {255, 255, 0, 255}, pixels);
+                    break;
+                case TILE_WALL_TOP_LEFT_CORNER:
+                    render_tile(w, h, {255, 0, 255, 255}, pixels);
+                    break;
+                case TILE_WALL_TOP_RIGHT_CORNER:
+                    render_tile(w, h, {0, 255, 255, 255}, pixels);
+                    break;
+                case TILE_WALL_BOTTOM_LEFT_CORNER:
+                    render_tile(w, h, {255, 128, 0, 255}, pixels);
+                    break;
+                case TILE_WALL_BOTTOM_RIGHT_CORNER:
+                    render_tile(w, h, {128, 0, 255, 255}, pixels);
+                    break;
+                case TILE_WALL_INNER_TOP_LEFT_CORNER:
+                case TILE_WALL_INNER_TOP_RIGHT_CORNER:
+                case TILE_WALL_INNER_BOTTOM_LEFT_CORNER:
+                case TILE_WALL_INNER_BOTTOM_RIGHT_CORNER:
+                    // color_t col = { 200, 200, 200, 255}; // Light Grey
+                    break;
+                case TILE_CHECKPOINT:
+                    // color_t col = { 0, 255, 0, 255}; // Bright Green for checkpoint
+                    break;
+                case TILE_SPIKE:
+                    {
+                        // Draw spike as an upward-pointing triangle
+                        // SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255); // Dark red color for spikes
+                        
+                        // Define triangle vertices (bottom-left, bottom-right, top-center)
+                        int baseY = (int)((y + 1) * tileHeight);  // Bottom of the tile
+                        int tipY = (int)(y * tileHeight);          // Top of the tile
+                        int leftX = (int)(x * tileWidth);
+                        int rightX = (int)((x + 1) * tileWidth);
+                        int centerX = (int)((x + 0.5f) * tileWidth);
+                        
+                        // Draw filled triangle using scanline method
+                        for (int sy = tipY; sy <= baseY; sy++) {
+                            float progress = (float)(sy - tipY) / (baseY - tipY);
+                            int lineLeftX = centerX - (int)(progress * (centerX - leftX));
+                            int lineRightX = centerX + (int)(progress * (rightX - centerX));
+                            // SDL_RenderDrawLine(renderer, lineLeftX, sy, lineRightX, sy);
+                        }
+                    }
+                    break;
+                case TILE_EMPTY:
+                case TILE_PLAYER_START:
+                default:
+                    // Do nothing for empty or player start tiles
+                    break;
+            }
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -240,16 +300,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    for (int y = 0 ; y < 100; y++)
-    {
-        for (int x = 0 ; x < 100; x++)
-        {
-            if (x % 4 == 0)
-                draw_pixel(x,y, {255, 255, 0, 255}, pixels);
-            else
-                draw_pixel(x,y, {255, 0, 0, 255}, pixels);
-        }
-    }
+    int y = 12, x = 12;
 
     GLenum glewError = glewInit();
     if( glewError != GLEW_OK )
@@ -258,18 +309,36 @@ int main(int argc, char* argv[]) {
     }
 
     window_canvas_t canvas = window_quad("shaders/renderer/pixel/fragment.glsl","shaders/renderer/pixel/vertex.glsl", pixels);
+    draw_pixel(10, 10, {255, 255, 0, 255}, pixels);
 
-    int mousex, mousey;
+    int currentLevel = 1;
+    Map* map = NULL;
+
+    auto loadLevel = [&](int level) {
+        char mapPath[256];
+        snprintf(mapPath, sizeof(mapPath), "maps/%d.mp", level);
+        map = loadMap(mapPath);
+        return map;
+    };
+
+    if (!loadLevel(currentLevel)) {
+        printf("Failed to load initial level.\n");
+        SDL_Quit();
+        return 1;
+    }
+
+    renderMap(pixels, map);
 
     while (1) {
         int w, h;
-        SDL_GetMouseState(&mousex, &mousey);
         SDL_GetWindowSize(window, &w, &h);
         glViewport(0, 0, w, h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         SDL_Event ev;
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 300, 300, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         while (SDL_PollEvent(&ev))
         {
             if (ev.type == SDL_QUIT)
@@ -290,14 +359,6 @@ int main(int argc, char* argv[]) {
         }
         SDL_SetWindowFullscreen(window, win_mode);
         render_quad_screen(canvas);
-        GLint mouse = glGetUniformLocation(canvas.shader_program, "mouse");
-        GLint resolution = glGetUniformLocation(canvas.shader_program, "resolution");
-        info_log_shader(mouse);
-        info_log_shader(resolution);
-
-        glUniform2f(mouse, (float)mousex/((float)w/2) - 1, -(float)mousey/((float)h/2) + 1);
-        glUniform2f(resolution, w, h);
-
         SDL_GL_SwapWindow(window);
     }
 
@@ -307,4 +368,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-

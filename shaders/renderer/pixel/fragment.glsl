@@ -14,9 +14,10 @@ void main()
     vec2 uv = gl_FragCoord.xy/resolution * 2. - 1.;
 
     float light = 1/(length(uv - mouse) * 2.);
-    vec4 lightColor = vec4(vec3(light) * 0.1, 1.0);
 
-    vec4 text = texture(t, uvtex)/darken;
+    vec4 lightColor = vec4(vec3(light), 1.0);
 
-    gl_FragColor = lightColor;
+    vec4 text = texture(t, uvtex);
+
+    gl_FragColor = text;
 }
