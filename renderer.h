@@ -14,6 +14,13 @@
 // Forward-declare the Player struct from main.cpp to avoid circular dependencies
 
 
+
+typedef struct
+{
+    float r, g, b, a;
+} color_t;
+
+
 typedef enum{
     VERTEX = GL_VERTEX_SHADER, FRAGEMENT = GL_FRAGMENT_SHADER
 } shader_type;
@@ -79,5 +86,7 @@ void renderFrame(GameRenderer gameRenderer, Map* map, Player* player);
  * @param gameRenderer The game renderer instance to destroy.
  */
 void destroyRenderer(GameRenderer* gameRenderer);
+void renderMap(char* pixels, Map* map);
+void draw_pixel(int x, int y, color_t color, char* pixels);
 
 #endif // RENDERER_H
