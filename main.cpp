@@ -188,6 +188,10 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, char* data
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+
+    // Generate framebuffer
+    
+
     // shaders linking
     glAttachShader(canvas.shader_program, canvas.vertex_shader);
     glAttachShader(canvas.shader_program, canvas.fragment_shader);
@@ -236,10 +240,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    int y = 12, x = 12;
-
-    for ( ; y < 100; y++)
-       draw_pixel(x,y, {255, 0, 0, 255}, pixels);
+    for (int y = 0 ; y < 100; y++)
+    {
+        for (int x = 0 ; x < 100; x++)
+        {
+            if (x % 4 == 0)
+                draw_pixel(x,y, {255, 255, 0, 255}, pixels);
+            else
+                draw_pixel(x,y, {255, 0, 0, 255}, pixels);
+        }
+    }
 
     GLenum glewError = glewInit();
     if( glewError != GLEW_OK )
@@ -249,8 +259,11 @@ int main(int argc, char* argv[]) {
 
     window_canvas_t canvas = window_quad("shaders/renderer/pixel/fragment.glsl","shaders/renderer/pixel/vertex.glsl", pixels);
 
+    int mousex, mousey;
+
     while (1) {
         int w, h;
+        SDL_GetMouseState(&mousex, &mousey);
         SDL_GetWindowSize(window, &w, &h);
         glViewport(0, 0, w, h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -277,6 +290,14 @@ int main(int argc, char* argv[]) {
         }
         SDL_SetWindowFullscreen(window, win_mode);
         render_quad_screen(canvas);
+        GLint mouse = glGetUniformLocation(canvas.shader_program, "mouse");
+        GLint resolution = glGetUniformLocation(canvas.shader_program, "resolution");
+        info_log_shader(mouse);
+        info_log_shader(resolution);
+
+        glUniform2f(mouse, (float)mousex/((float)w/2) - 1, -(float)mousey/((float)h/2) + 1);
+        glUniform2f(resolution, w, h);
+
         SDL_GL_SwapWindow(window);
     }
 
@@ -286,3 +307,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
