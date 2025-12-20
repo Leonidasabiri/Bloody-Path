@@ -2,7 +2,7 @@
 #include "config.h"
 #include "tinyutils.h"
 
-void draw_pixel(int x, int y, color_t color, char* pixels)
+void draw_pixel(int x, int y, color_t color, unsigned char* pixels)
 {
     pixels[(y * 300 + x) * 4 + 0] = color.r;
     pixels[(y * 300 + x) * 4 + 1] = color.g;
@@ -10,7 +10,7 @@ void draw_pixel(int x, int y, color_t color, char* pixels)
     pixels[(y * 300 + x) * 4 + 3] = color.a;
 }
 
-void render_tile(vec2_t w, vec2_t h, color_t color, char* pixels)
+void render_tile(vec2_t w, vec2_t h, color_t color, unsigned char* pixels, unsigned char *texture)
 {
     for (int y = h.x; y < h.y; y++) {
         for (int x = w.x; x < w.y; x++) {
@@ -19,11 +19,13 @@ void render_tile(vec2_t w, vec2_t h, color_t color, char* pixels)
     }
 } 
 
-void renderMap(char* pixels, Map* map) {
+void renderMap(unsigned char* pixels, Map* map) {
     if (!map) return;
 
     int tileWidth =  TEXTURE_DEMENSIONS/map->width;
     int tileHeight =  TEXTURE_DEMENSIONS/map->height;
+
+    unsigned char *texture = 0;
 
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
@@ -31,44 +33,47 @@ void renderMap(char* pixels, Map* map) {
             vec2_t h = {y * tileHeight, y * tileHeight + tileHeight};
             switch (map->tile_types[y][x]) {
                 case TILE_WALL_INDESTRUCTIBLE:
-                    render_tile(w, h, {50, 50, 50, 255}, pixels);
+                    render_tile(w, h, {50, 50, 50, 255}, pixels, texture);
                     break;
                 case TILE_WALL:
-                    render_tile(w, h, {100, 100, 100, 255}, pixels);
+                    render_tile(w, h, {100, 100, 100, 255}, pixels, texture);
                     break;
                 case TILE_WALL_TOP_EDGE:
-                    render_tile(w, h, {255, 0, 0, 255}, pixels);
+                    render_tile(w, h, {255, 0, 0, 255}, pixels, texture);
                     break;
                 case TILE_WALL_BOTTOM_EDGE:
-                    render_tile(w, h, {0, 255, 0, 255}, pixels);
+                    render_tile(w, h, {0, 255, 0, 255}, pixels, texture);
                     break;
                 case TILE_WALL_LEFT_EDGE:
-                    render_tile(w, h, {0, 0, 255, 255}, pixels);
+                    render_tile(w, h, {0, 0, 255, 255}, pixels, texture);
                     break;
                 case TILE_WALL_RIGHT_EDGE:
-                    render_tile(w, h, {255, 255, 0, 255}, pixels);
+                    render_tile(w, h, {255, 255, 0, 255}, pixels, texture);
                     break;
                 case TILE_WALL_TOP_LEFT_CORNER:
-                    render_tile(w, h, {255, 0, 255, 255}, pixels);
+                    render_tile(w, h, {255, 0, 255, 255}, pixels, texture);
                     break;
                 case TILE_WALL_TOP_RIGHT_CORNER:
-                    render_tile(w, h, {0, 255, 255, 255}, pixels);
+                    render_tile(w, h, {0, 255, 255, 255}, pixels, texture);
                     break;
                 case TILE_WALL_BOTTOM_LEFT_CORNER:
-                    render_tile(w, h, {255, 128, 0, 255}, pixels);
+                    render_tile(w, h, {255, 128, 0, 255}, pixels, texture);
                     break;
                 case TILE_WALL_BOTTOM_RIGHT_CORNER:
-                    render_tile(w, h, {128, 0, 255, 255}, pixels);
+                    render_tile(w, h, {128, 0, 255, 255}, pixels, texture);
                     break;
                 case TILE_WALL_INNER_TOP_LEFT_CORNER:
                 case TILE_WALL_INNER_TOP_RIGHT_CORNER:
                 case TILE_WALL_INNER_BOTTOM_LEFT_CORNER:
                 case TILE_WALL_INNER_BOTTOM_RIGHT_CORNER:
-                    render_tile(w, h, {200, 200, 200, 255}, pixels);
+                    render_tile(w, h, {200, 200, 200, 255}, pixels, texture);
                     // color_t col = { 200, 200, 200, 255}; // Light Grey
                     break;
                 case TILE_CHECKPOINT:
-                    render_tile(w, h, {0, 255, 0, 255}, pixels);
+                    render_tile(w, h, {0, 255, 0, 255}, pixels, texture);
+                    break;                
+                case TILE_EXIT:
+                    render_tile(w, h, {255, 255, 0, 255}, pixels, texture);
                     break;
                 case TILE_SPIKE:
                     {
@@ -101,18 +106,18 @@ void renderMap(char* pixels, Map* map) {
                     }
                     break;
                 case TILE_EMPTY:
-                    render_tile(w, h, {0, 0, 0, 255}, pixels);
+                    render_tile(w, h, {0, 0, 0, 255}, pixels, texture);
                     break;
                 case TILE_PLAYER_START:
                 default:
-                    render_tile(w, h, {0, 0, 0, 255}, pixels);
+                    render_tile(w, h, {0, 0, 0, 255}, pixels, texture);
                     break;
             }
         }
     }
 }
 
-void renderPlayer(char* pixels, Player* player) {
+void renderPlayer(unsigned char* pixels, Player* player, unsigned char* frame) {
     if (!player) 
     {
         return;
@@ -120,7 +125,7 @@ void renderPlayer(char* pixels, Player* player) {
     vec2_t playerpos = { (int)player->x, (int)player->x + (int)player->width} ;
     vec2_t player_dimension = {(int)player->y, (int)player->y + (int)player->height };
 
-    render_tile(playerpos, player_dimension, {255, 0, 0, 255}, pixels);
+    render_tile(playerpos, player_dimension, {255, 0, 0, 255}, pixels, frame);
 }
 
 

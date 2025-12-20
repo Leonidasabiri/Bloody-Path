@@ -154,6 +154,10 @@ static void analyzeMap(Map* map) {
                 map->tile_types[y][x] = TILE_WALL_INDESTRUCTIBLE;
                 continue;
             }
+            if (current_char == 'E') {
+                map->tile_types[y][x] = TILE_EXIT;
+                continue;
+            }
             if (current_char != '#') {
                 map->tile_types[y][x] = TILE_EMPTY;
                 continue;

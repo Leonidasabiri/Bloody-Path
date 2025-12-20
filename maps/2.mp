@@ -9,7 +9,7 @@ W..................W
 W..................W
 W...#####..........W
 W..................W
-W..................C
+W..................E
 WWWWWWWWWWWWWWWWWWWW
 WWWWWWWWWWWWWWWWWWWW
 WWWWWWWWWWWWWWWWWWWW

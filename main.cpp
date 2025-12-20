@@ -4,6 +4,7 @@
 // that's why we have to replace SDL_TEXTURE with our own implementation, to have this controll.
 
 #define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
@@ -16,7 +17,6 @@
 #include "map_parser.h"
 #include "renderer.h"
 #include "player.h"
-#include "stb_image.h"
 
 
 const char *game_name = "Bloody Path";
@@ -105,6 +105,35 @@ bool checkSpikeCollision(Player* player, Map* map) {
     return map->tile_types[mapY][mapX] == TILE_SPIKE;
 }
 
+bool checkExitCollisionLocal(Player* player, Map* map) {
+    if (!map) return false;
+
+    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
+
+    // Check if ANY part of the player overlaps with the exit tile
+    // Calculate which tiles the player occupies
+    // Add a small tolerance (2 pixels) to account for wall collision blocking
+    float tolerance = 2.0f;
+    int leftTile = (int)(player->x / tileWidth);
+    int rightTile = (int)((player->x + player->width + tolerance) / tileWidth);
+    int topTile = (int)(player->y / tileHeight);
+    int bottomTile = (int)((player->y + player->height - 1) / tileHeight);
+    
+    // Check all tiles the player overlaps with (or is very close to)
+    for (int y = topTile; y <= bottomTile; y++) {
+        for (int x = leftTile; x <= rightTile; x++) {
+            if (x >= 0 && x < map->width && y >= 0 && y < map->height) {
+                if (map->tile_types[y][x] == TILE_EXIT) {
+                    printf("Exit collision detected! Player overlapping exit at grid (%d, %d)\n", x, y);
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
 
 shader_t shader(const char* path, shader_type type)
 {
@@ -152,7 +181,7 @@ void info_log_shader(GLuint id)
     }
 }
 
-window_canvas_t window_quad(const char* fragment, const char* vertex, char* data)
+window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned char* data)
 {
     // [MOUNIR]: Opengl by default works with ndc so playing on the range [-1, 1] would always be mapped to the window borders
     window_canvas_t canvas;
@@ -283,7 +312,7 @@ window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_p
     return canvas;
 }
 
-void render_quad_screen(window_canvas_t canvas_quad, char *pixels)
+void render_quad_screen(window_canvas_t canvas_quad, unsigned char *pixels)
 {
     glUseProgram(canvas_quad.shader_program);
     glBindTexture(GL_TEXTURE_2D, canvas_quad.texture);
@@ -299,6 +328,32 @@ void render_quad_post_processing(window_canvas_t canvas_quad)
     glBindTexture(GL_TEXTURE_2D, canvas_quad.frame_buffer_texture);
     glBindVertexArray(canvas_quad.vertex_array);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+unsigned char  *exctract_sprite_sheet_sample(unsigned char* sprite_sheet, 
+                                vec2_t boundsx, 
+                                vec2_t boundsy,
+                                int texture_width)
+{
+    int width = -(int)boundsx.x + (int)boundsx.y;
+    int height = -(int)boundsy.x + (int)boundsy.y;
+    unsigned char* frame = (unsigned char*)malloc(width * height * 4);
+    int tx = boundsx.x;
+    int ty = boundsy.x;
+
+    for (int y = 0 ; y < height ; y++)
+    {
+        for (int x = 0 ; x < width; x++)
+        {
+            frame[(y * width + x) * 4 + 0] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 0];
+            frame[(y * width + x) * 4 + 1] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 1];
+            frame[(y * width + x) * 4 + 2] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 2];
+            frame[(y * width + x) * 4 + 3] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 3];
+            tx++;
+        }
+        ty++;
+    }
+    return frame;
 }
 
 int main(int argc, char* argv[]) {
@@ -321,7 +376,7 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
     SDL_GL_MakeCurrent(window, context);
 
-    char* pixels = (char*)malloc(300 * 300 * 4);
+    unsigned char* pixels = (unsigned char*)malloc(300 * 300 * 4);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -352,9 +407,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-
     Player player;
     findPlayerStart(map, &player);
+    // the whole sprite sheet goes here
+    int sprite_w, sprite_h, channels;
+    unsigned char* sprite_sheet = stbi_load("assets/Hooded Protagonist Animation Sheet.png", &sprite_w, &sprite_h, &channels, 4);
     player.touchedSpike = false;
     player.spikeTimer = 0;
 
@@ -363,13 +420,62 @@ int main(int argc, char* argv[]) {
     canvas.height = SCREEN_HEIGHT;
     canvas = window_quad_multipass(canvas, "shaders/post_processing/bloom.glsl");
 
-    draw_pixel(10, 10, {255, 255, 0, 255}, pixels);
-
     int mousex, mousey;
 
     float time = 0;
 
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
+
+    unsigned char *frame = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {32 * 3 , 32 * 4}, sprite_w);
+
+    player.animation_frames[0] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w),
+    player.animation_frames[1] = exctract_sprite_sheet_sample(sprite_sheet, {32, 64}, {32, 64}, sprite_w);
+    player.animation_frames[2] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[3] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[4] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[5] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[6] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[7] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[8] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[9] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[10] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[11] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[12] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[13] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[14] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[15] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[16] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[17] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[18] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[19] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[20] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[21] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[22] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[23] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[24] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[25] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[26] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[27] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[28] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[29] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[30] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[31] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[32] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[33] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[34] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[35] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[36] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[37] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[38] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[39] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[40] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[41] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[42] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[43] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[44] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[45] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[46] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.animation_frames[47] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
 
     while (1) {
         int w, h;
@@ -386,9 +492,28 @@ int main(int argc, char* argv[]) {
 
         time += 0.1;
 
-        renderMap(pixels, map);
-        renderPlayer(pixels, &player);
+        // renderMap(pixels, map);
+        // renderPlayer(pixels, &player, frame);
+        // test samping
+        for (int y = 0 ; y < 32; y++)
+        {
+            for (int x = 0 ; x < 32; x++)
+            {
+                int xx = x, yy = y;
+
+                color_t texel = {
+                    player.animation_frames[0][(yy * 32 + xx) * 4 + 0],
+                    player.animation_frames[0][(yy * 32 + xx) * 4 + 1],
+                    player.animation_frames[0][(yy * 32 + xx) * 4 + 2],
+                    player.animation_frames[0][(yy * 32 + xx) * 4 + 3]
+                };
+                if (texel.a != 0)
+                 draw_pixel(x, y, texel, pixels);
+            }
+        }
         render_quad_screen(canvas, pixels);
+
+
 
         while (SDL_PollEvent(&ev))
         {
@@ -463,7 +588,29 @@ int main(int argc, char* argv[]) {
                 } else {
                     player.y = nextY;
                 }
-            }            
+            }    
+
+            if (checkExitCollisionLocal(&player, map)) {
+                currentLevel++;
+                if (loadLevel(currentLevel)) {
+                    findPlayerStart(map, &player); // Reset player position for new level
+                    // Reset animation state for new level
+                    player.currentAnim = ANIM_IDLE;
+                    player.currentFrame = 0;
+                    player.lastFrameTime = SDL_GetTicks();
+                    player.facingRight = true;
+                    player.isDying = false;
+                    player.isWaitingToRespawn = false;
+                    player.isRespawning = false;
+                    player.deathAnimStartTime = 0;
+                    player.deathStartX = 0;
+                    player.deathStartY = 0;
+                    player.travelStartTime = 0;
+                    // Reset spike timer when entering new level
+                    player.touchedSpike = false;
+                    player.spikeTimer = 0;
+                }         
+            }
         }
 
         SDL_SetWindowFullscreen(window, win_mode);
