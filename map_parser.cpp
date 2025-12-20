@@ -2,10 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define MAX_LINE_LENGTH 512
 
 static void analyzeMap(Map* map);
+static void collectCheckpoints(Map* map);
+static void findExit(Map* map);
 
 // Helper to clean up resources on error
 static void cleanup_and_fail(FILE* file, Map* map, int allocated_rows) {
@@ -71,6 +74,11 @@ Map* loadMap(const char* filename) {
 
     map->width = width;
     map->height = height;
+    map->checkpoints = NULL;
+    map->checkpointCount = 0;
+    map->hasExit = false;
+    map->exit.x = 0;
+    map->exit.y = 0;
     map->data = (char**)malloc(height * sizeof(char*));
     map->tile_types = (TileType**)malloc(height * sizeof(TileType*));
     if (!map->data || !map->tile_types) {
@@ -100,6 +108,12 @@ Map* loadMap(const char* filename) {
     // Third pass to analyze the map and determine tile types
     analyzeMap(map);
 
+    // Fourth pass to collect checkpoint locations
+    collectCheckpoints(map);
+
+    // Fifth pass to find the exit
+    findExit(map);
+
     return map;
 }
 
@@ -116,6 +130,9 @@ void destroyMap(Map* map) {
             free(map->tile_types[i]);
         }
         free(map->tile_types);
+    }
+    if (map->checkpoints) {
+        free(map->checkpoints);
     }
     free(map);
 }
@@ -141,6 +158,10 @@ static void analyzeMap(Map* map) {
             }
             if (current_char == 'C') {
                 map->tile_types[y][x] = TILE_CHECKPOINT;
+                continue;
+            }
+            if (current_char == 'E') {
+                map->tile_types[y][x] = TILE_EXIT;
                 continue;
             }
             if (current_char == 'S') {
@@ -195,4 +216,117 @@ static void analyzeMap(Map* map) {
             }
         }
     }
+}
+
+// --- Checkpoint Collection Logic ---
+
+static void collectCheckpoints(Map* map) {
+    // First pass: count checkpoints
+    int count = 0;
+    for (int y = 0; y < map->height; ++y) {
+        for (int x = 0; x < map->width; ++x) {
+            if (map->tile_types[y][x] == TILE_CHECKPOINT) {
+                count++;
+            }
+        }
+    }
+
+    if (count == 0) {
+        map->checkpoints = NULL;
+        map->checkpointCount = 0;
+        return;
+    }
+
+    // Allocate checkpoint array
+    map->checkpoints = (Checkpoint*)malloc(count * sizeof(Checkpoint));
+    if (!map->checkpoints) {
+        fprintf(stderr, "Failed to allocate memory for checkpoints\n");
+        map->checkpointCount = 0;
+        return;
+    }
+
+    // Second pass: collect checkpoint positions
+    int index = 0;
+    for (int y = 0; y < map->height; ++y) {
+        for (int x = 0; x < map->width; ++x) {
+            if (map->tile_types[y][x] == TILE_CHECKPOINT) {
+                map->checkpoints[index].x = x;
+                map->checkpoints[index].y = y;
+                map->checkpoints[index].activated = false;
+                index++;
+            }
+        }
+    }
+
+    map->checkpointCount = count;
+    printf("Loaded %d checkpoint(s) from map\n", count);
+}
+
+// --- Checkpoint Management Functions ---
+
+bool checkCheckpointCollision(Map* map, int playerX, int playerY, float* checkpointX, float* checkpointY) {
+    if (!map || !map->checkpoints || map->checkpointCount == 0) {
+        return false;
+    }
+
+    for (int i = 0; i < map->checkpointCount; i++) {
+        Checkpoint* cp = &map->checkpoints[i];
+        
+        // Check if player is on this checkpoint tile
+        if (cp->x == playerX && cp->y == playerY) {
+            if (!cp->activated) {
+                // New checkpoint activated!
+                cp->activated = true;
+                *checkpointX = (float)cp->x;
+                *checkpointY = (float)cp->y;
+                printf("Checkpoint activated at (%d, %d)\n", cp->x, cp->y);
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+void resetCheckpoints(Map* map) {
+    if (!map || !map->checkpoints) {
+        return;
+    }
+    
+    for (int i = 0; i < map->checkpointCount; i++) {
+        map->checkpoints[i].activated = false;
+    }
+    
+    printf("All checkpoints reset\n");
+}
+
+// --- Exit Management Functions ---
+
+static void findExit(Map* map) {
+    for (int y = 0; y < map->height; ++y) {
+        for (int x = 0; x < map->width; ++x) {
+            if (map->tile_types[y][x] == TILE_EXIT) {
+                map->exit.x = x;
+                map->exit.y = y;
+                map->hasExit = true;
+                printf("Exit found at (%d, %d)\n", x, y);
+                return;
+            }
+        }
+    }
+    
+    printf("Warning: No exit found in map\n");
+}
+
+bool checkExitCollision(Map* map, int playerX, int playerY) {
+    if (!map || !map->hasExit) {
+        return false;
+    }
+    
+    if (map->exit.x == playerX && map->exit.y == playerY) {
+        printf("Player reached the exit!\n");
+        return true;
+    }
+    
+    return false;
 }

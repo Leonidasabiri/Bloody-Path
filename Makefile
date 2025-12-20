@@ -14,7 +14,7 @@ OBJS = $(SRCS:.cpp=.o)
 # -std=c++11 is required for the lambda function in main.cpp
 # -Wall -Wextra -g are good practice for warnings and debugging
 CXXFLAGS = -std=c++11 -Wall -Wextra -g $(shell sdl2-config --cflags)
-LIBS = $(shell sdl2-config --libs)
+LIBS = $(shell sdl2-config --libs) -lSDL2_image
 
 # Default rule: build everything
 .PHONY: all
