@@ -295,11 +295,33 @@ int main(int argc, char* argv[]) {
 
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
+    // generete framebuffer here for post processing effects
+    glGenFramebuffers(1, &canvas.frame_buffer_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
+    glGenTextures(1, &canvas.frame_buffer_texture);  
+    glBindTexture(GL_TEXTURE_2D, canvas.frame_buffer_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 300, 300, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvas.frame_buffer_texture, 0);
+
+    glGenRenderbuffers(1, &canvas.render_buffer_object);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, TEXTURE_DEMENSIONS, TEXTURE_DEMENSIONS);
+    glBindRenderbuffer(GL_RENDERBUFFER, canvas.render_buffer_object);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, canvas.render_buffer_object);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        printf("Error creating framebuffer\n");
+
     while (1) {
         int w, h;
         SDL_GetMouseState(&mousex, &mousey);
         SDL_GetWindowSize(window, &w, &h);
         glViewport(0, 0, w, h);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -396,6 +418,15 @@ int main(int argc, char* argv[]) {
         glUniform2f(mouse, (float)mousex/((float)w/2) - 1, -(float)mousey/((float)h/2) + 1);
         glUniform2f(resolution, w, h);
         glUniform1f(time_u, time);
+
+
+        // post process pass
+        glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
+        glBindTexture(GL_TEXTURE_2D, canvas.texture);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
 
         SDL_GL_SwapWindow(window);
     }

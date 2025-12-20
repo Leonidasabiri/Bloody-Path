@@ -41,14 +41,22 @@ void main()
     mos.x *= resolution.x/resolution.y;
     playerpos.x *= resolution.x/resolution.y;
 
-    float light = (length(vec2(uv - playerpos))) + noise(uv - playerpos + time/12)/2 + noise(uv - playerpos + time/12)/52 - 0.3;
+    float light = (length((uv - playerpos))) + noise(uv - playerpos + time/12)/2 + noise(uv - playerpos + time/12)/52 - 0.3;
 
     vec4 lightColor = vec4(vec3(light), 1.0);
 
-    if (light < 0.5)
-        lightColor = texture(t, uvtex)/darken;
+    if (light < 0.35)
+        lightColor = texture(t, uvtex)/darken + (vec4(1./(1 - light * 2.)/3.) 
+                    * mix(vec4(0.75, 0.0, 0., 1.), 
+                          vec4(0.0, 0.0, 0., 1.), light) * vec4(1.4, 0., 0., 1.))/2.4;
     else
-        lightColor = texture(t, uvtex)/(darken * 25) + vec4(1./(light * 2.)/4.) * mix(vec4(1.5, 0., 0., 1.), vec4(0.0, 0.0, 0., 1.), light);
+    {
+        lightColor = texture(t, uvtex)/(darken * 15) 
+                    + vec4((light * 1.2)/3. + 0.2) 
+                    * mix(vec4(1.0, 0.0, 0., 1.), 
+                          vec4(0.0, 0.0, 0., 1.), light) * vec4(1.4, 0., 0., 1.);
+
+    }
 
     gl_FragColor = lightColor;
 }

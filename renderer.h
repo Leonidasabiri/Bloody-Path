@@ -45,7 +45,9 @@ typedef struct
     GLuint  vertex_shader;
     GLuint  fragment_shader;
     GLuint  texture;
+    GLuint  frame_buffer_texture;
     GLuint  frame_buffer_id;
+    GLuint  render_buffer_object;
     char    *buffer;
     int     texture_dimensions;
 }window_canvas_t;
