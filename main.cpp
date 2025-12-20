@@ -139,6 +139,11 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
+    
+    // Initialize tile variants pointer
+    gameRenderer->tileVariants = NULL;
+    gameRenderer->mapWidth = 0;
+    gameRenderer->mapHeight = 0;
 
     windowmode_t win_mode = window_normal;
     int currentLevel = 1;
@@ -160,6 +165,9 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
+    
+    // Initialize tile variants for the first level
+    initializeTileVariants(gameRenderer, map);
 
     Player player;
     findPlayerStart(map, &player);
@@ -401,6 +409,7 @@ int main(int argc, char* argv[]) {
         if (checkExitCollisionLocal(&player, map)) {
             currentLevel++;
             if (loadLevel(currentLevel)) {
+                initializeTileVariants(gameRenderer, map); // Initialize tile variants for new level
                 findPlayerStart(map, &player); // Reset player position for new level
                 // Reset animation state for new level
                 player.currentAnim = ANIM_IDLE;

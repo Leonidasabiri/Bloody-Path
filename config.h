@@ -1,8 +1,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+// Map is 24 wide x 13 tall
+// To make square tiles: if each tile is 40x40 pixels
+// Screen would be: 24 * 40 = 960 width, 13 * 40 = 520 height
+#define SCREEN_WIDTH 960
+#define SCREEN_HEIGHT 520
 #define PLAYER_SPEED 5.0f
 #define GRAVITY 0.5f
 #define JUMP_STRENGTH -12.0f

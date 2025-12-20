@@ -11,6 +11,12 @@ typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
     SDL_Texture* playerSpriteSheet; // Player sprite sheet texture
+    SDL_Texture* tilesetTexture; // Dungeon tileset texture
+    int tilesetColumns; // Number of columns in the tileset
+    int tilesetRows; // Number of rows in the tileset
+    int** tileVariants; // Store randomized tile variants for each map position
+    int mapWidth; // Store map dimensions for tile variants
+    int mapHeight;
 } GameRenderer;
 
 /**
@@ -24,6 +30,15 @@ typedef struct {
 GameRenderer* initRenderer(const char* title, int width, int height);
 
 /**
+ * @brief Initializes randomized tile variants for the given map.
+ * This should be called whenever a new map is loaded.
+ * 
+ * @param gameRenderer The game renderer instance.
+ * @param map The map to generate tile variants for.
+ */
+void initializeTileVariants(GameRenderer* gameRenderer, Map* map);
+
+/**
  * @brief Renders a single frame of the game.
  * 
  * @param gameRenderer The game renderer instance.
@@ -31,6 +46,13 @@ GameRenderer* initRenderer(const char* title, int width, int height);
  * @param player The player to render.
  */
 void renderFrame(GameRenderer* gameRenderer, Map* map, Player* player);
+
+/**
+ * @brief Renders a test scene showing all tiles from the tileset with their indices.
+ * 
+ * @param gameRenderer The game renderer instance.
+ */
+void renderTilesetTest(GameRenderer* gameRenderer);
 
 /**
  * @brief Destroys the renderer and cleans up resources.
