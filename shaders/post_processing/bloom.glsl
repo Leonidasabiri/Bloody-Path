@@ -21,10 +21,12 @@ void main()
                  + texture(render_pass, uv + vec2(0.0, offset)/22.)
                  + texture(render_pass, uv + vec2(-offset, offset)/22.)
                  + texture(render_pass, uv + vec2(-offset, -offset)/22.)
-                 + texture(render_pass, uv + vec2(offset, -offset)/22.)/(15 * i);
+                 + texture(render_pass, uv + vec2(offset, -offset)/22.)
+                 + texture(render_pass, uv + vec2(0, -offset)/22.)/(15 * i);
     }
 
     if (blurred.x >= 0 && blurred.y >= 0)
          tex += blurred/10;
+    
     gl_FragColor = tex;
 }

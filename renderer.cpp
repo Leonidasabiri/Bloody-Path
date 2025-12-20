@@ -87,6 +87,15 @@ void renderMap(char* pixels, Map* map) {
                             float progress = (float)(sy - tipY) / (baseY - tipY);
                             int lineLeftX = centerX - (int)(progress * (centerX - leftX));
                             int lineRightX = centerX + (int)(progress * (rightX - centerX));
+                            for (int x = leftX; x < lineLeftX; x++)
+                                draw_pixel(x, sy, {0, 0, 0, 255}, pixels);
+                            for (int x = lineRightX; x < rightX; x++)
+                                draw_pixel(x, sy, {0, 0, 0, 255}, pixels);
+
+                            for (int x = lineLeftX; x < lineRightX; x++)
+                            {
+                                draw_pixel(x, sy, {200, 50, 50, 255}, pixels);
+                            }
                             // SDL_RenderDrawLine(renderer, lineLeftX, sy, lineRightX, sy);
                         }
                     }
