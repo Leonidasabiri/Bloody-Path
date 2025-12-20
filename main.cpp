@@ -17,8 +17,6 @@
 #include "renderer.h"
 #include "player.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
 
 const char *game_name = "Bloody Path";
 
@@ -90,6 +88,13 @@ shader_t shader(const char* path, shader_type type)
 {
     shader_t shader_s;
     FILE *shader_file = fopen(path, "r");
+
+    if (!shader_file)
+    {
+        perror("Shader not found !!");
+        return {};
+    }
+
     fseek(shader_file, 0, SEEK_END);
     int file_size = ftell(shader_file);
     char *shader_code = (char*)malloc(file_size + 1);
@@ -103,9 +108,11 @@ shader_t shader(const char* path, shader_type type)
     glCompileShader( shader );
     GLint shaderCompiled = GL_FALSE;
     glGetShaderiv( shader, GL_COMPILE_STATUS, &shaderCompiled );
+    char infoLog[512];
     if( shaderCompiled != GL_TRUE )
     {
-        printf( "Unable to compile shader %d!\n", shader );
+        glGetProgramInfoLog(shader, 512, NULL, infoLog);
+        printf( "Unable to compile shader %d! %s\n", shader, infoLog );
     }
 
     shader_s.shader_id = shader;
@@ -217,15 +224,57 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, char* data
     info_log_shader(canvas.shader_program);
 
     // clean up
-    glDeleteShader(canvas.vertex_shader);
-    glDeleteShader(canvas.fragment_shader);
+    glDeleteShader(canvas.fragment_shader);    
 
     return canvas;
 }
 
-void render_quad_screen(window_canvas_t canvas_quad)
+window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_process)
+{
+    // [MOUNIR]: setuping the render pass here
+    glGenFramebuffers(1, &canvas.frame_buffer_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
+    glViewport(0, 0, canvas.width, canvas.height);
+    glGenTextures(1, &canvas.frame_buffer_texture);  
+    glBindTexture(GL_TEXTURE_2D, canvas.frame_buffer_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, canvas.width, canvas.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvas.frame_buffer_texture, 0);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        printf("Error creating framebuffer\n");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    canvas.post_process_shader = shader(post_process, FRAGEMENT).shader_id;
+
+    canvas.post_process_shader_program = glCreateProgram();
+    glAttachShader(canvas.post_process_shader_program, canvas.vertex_shader);
+    glAttachShader(canvas.post_process_shader_program, canvas.post_process_shader);
+    glLinkProgram(canvas.post_process_shader_program);
+
+    info_log_shader(canvas.post_process_shader_program);
+
+    return canvas;
+}
+
+void render_quad_screen(window_canvas_t canvas_quad, char *pixels)
 {
     glUseProgram(canvas_quad.shader_program);
+    glBindTexture(GL_TEXTURE_2D, canvas_quad.texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 300, 300, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(canvas_quad.vertex_array);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+void render_quad_post_processing(window_canvas_t canvas_quad)
+{
+    glUseProgram(canvas_quad.post_process_shader_program);
+    glBindTexture(GL_TEXTURE_2D, canvas_quad.frame_buffer_texture);
     glBindVertexArray(canvas_quad.vertex_array);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
@@ -265,10 +314,7 @@ int main(int argc, char* argv[]) {
         printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
     }
 
-    window_canvas_t canvas = window_quad("shaders/renderer/pixel/fragment.glsl","shaders/renderer/pixel/vertex.glsl", pixels);
-    draw_pixel(10, 10, {255, 255, 0, 255}, pixels);
-
-    int currentLevel = 2;
+    int currentLevel = 1;
     Map* map = NULL;
 
     auto loadLevel = [&](int level) {
@@ -284,10 +330,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+
     Player player;
     findPlayerStart(map, &player);
     player.touchedSpike = false;
     player.spikeTimer = 0;
+
+    window_canvas_t canvas = window_quad("shaders/renderer/pixel/fragment.glsl","shaders/renderer/pixel/vertex.glsl", pixels);
+    canvas.width = SCREEN_WIDTH;    
+    canvas.height = SCREEN_HEIGHT;
+    canvas = window_quad_multipass(canvas, "shaders/post_processing/bloom.glsl");
+
+    draw_pixel(10, 10, {255, 255, 0, 255}, pixels);
 
     int mousex, mousey;
 
@@ -295,33 +349,14 @@ int main(int argc, char* argv[]) {
 
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
-    // generete framebuffer here for post processing effects
-    glGenFramebuffers(1, &canvas.frame_buffer_id);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
-    glGenTextures(1, &canvas.frame_buffer_texture);  
-    glBindTexture(GL_TEXTURE_2D, canvas.frame_buffer_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 300, 300, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvas.frame_buffer_texture, 0);
-
-    glGenRenderbuffers(1, &canvas.render_buffer_object);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, TEXTURE_DEMENSIONS, TEXTURE_DEMENSIONS);
-    glBindRenderbuffer(GL_RENDERBUFFER, canvas.render_buffer_object);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, canvas.render_buffer_object);
-
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        printf("Error creating framebuffer\n");
-
     while (1) {
         int w, h;
         SDL_GetMouseState(&mousex, &mousey);
         SDL_GetWindowSize(window, &w, &h);
-        glViewport(0, 0, w, h);
 
+        // [MOUNIR]: first pass here
         glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
+        glViewport(0, 0, w, h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -331,8 +366,8 @@ int main(int argc, char* argv[]) {
 
         renderMap(pixels, map);
         renderPlayer(pixels, &player);
+        render_quad_screen(canvas, pixels);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 300, 300, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         while (SDL_PollEvent(&ev))
         {
             if (ev.type == SDL_QUIT)
@@ -343,6 +378,9 @@ int main(int argc, char* argv[]) {
                 {
                     case SDL_SCANCODE_F:
                         win_mode = (win_mode == window_normal) ? window_full_screen : window_normal;
+                        canvas.width = w;    
+                        canvas.height = h;
+                        // canvas =window_quad_multipass(canvas, "shaders/post_processing/bloom.glsl");
                         break;    
                     case SDL_SCANCODE_ESCAPE:
                         return 0;  
@@ -359,52 +397,54 @@ int main(int argc, char* argv[]) {
             }
         }
 
-// --- Horizontal Movement ---
-        float nextX = player.x;
-        if (keystates[SDL_SCANCODE_LEFT] || keystates[SDL_SCANCODE_A]) {
-            nextX -= PLAYER_SPEED;
-        }
-        if (keystates[SDL_SCANCODE_RIGHT] || keystates[SDL_SCANCODE_D]) {
-            nextX += PLAYER_SPEED;
-        }
-
-        // Horizontal collision
-        if (nextX > player.x) { // Moving right
-            if (!checkWallCollision(nextX + player.width, player.y, map) && !checkWallCollision(nextX + player.width, player.y + player.height - 1, map)) {
-                player.x = nextX;
+        // 
+        {
+    // --- Horizontal Movement ---
+            float nextX = player.x;
+            if (keystates[SDL_SCANCODE_LEFT] || keystates[SDL_SCANCODE_A]) {
+                nextX -= PLAYER_SPEED;
             }
-        } else if (nextX < player.x) { // Moving left
-            if (!checkWallCollision(nextX, player.y, map) && !checkWallCollision(nextX, player.y + player.height - 1, map)) {
-                player.x = nextX;
+            if (keystates[SDL_SCANCODE_RIGHT] || keystates[SDL_SCANCODE_D]) {
+                nextX += PLAYER_SPEED;
             }
-        }
 
-        // --- Vertical Movement (Gravity) ---
-        player.vy += GRAVITY;
-        float nextY = player.y + player.vy;
-
-        player.onGround = false; // Assume not on ground until proven otherwise
-
-        if (player.vy > 0) { // Moving down
-            if (checkWallCollision(player.x, nextY + player.height, map) || checkWallCollision(player.x + player.width - 1, nextY + player.height, map)) {
-                // Snap to ground
-                float tileHeight = (float)300 / map->height;
-                player.y = (int)((nextY + player.height) / tileHeight) * tileHeight - player.height;
-                player.vy = 0;
-                player.onGround = true;
-            } else {
-                player.y = nextY;
+            // Horizontal collision
+            if (nextX > player.x) { // Moving right
+                if (!checkWallCollision(nextX + player.width, player.y, map) && !checkWallCollision(nextX + player.width, player.y + player.height - 1, map)) {
+                    player.x = nextX;
+                }
+            } else if (nextX < player.x) { // Moving left
+                if (!checkWallCollision(nextX, player.y, map) && !checkWallCollision(nextX, player.y + player.height - 1, map)) {
+                    player.x = nextX;
+                }
             }
-        } else if (player.vy < 0) { // Moving up
-            if (checkWallCollision(player.x, nextY, map) || checkWallCollision(player.x + player.width - 1, nextY, map)) {
-                player.vy = 0;
-            } else {
-                player.y = nextY;
-            }
+
+            // --- Vertical Movement (Gravity) ---
+            player.vy += GRAVITY;
+            float nextY = player.y + player.vy;
+
+            player.onGround = false; // Assume not on ground until proven otherwise
+
+            if (player.vy > 0) { // Moving down
+                if (checkWallCollision(player.x, nextY + player.height, map) || checkWallCollision(player.x + player.width - 1, nextY + player.height, map)) {
+                    // Snap to ground
+                    float tileHeight = (float)300 / map->height;
+                    player.y = (int)((nextY + player.height) / tileHeight) * tileHeight - player.height;
+                    player.vy = 0;
+                    player.onGround = true;
+                } else {
+                    player.y = nextY;
+                }
+            } else if (player.vy < 0) { // Moving up
+                if (checkWallCollision(player.x, nextY, map) || checkWallCollision(player.x + player.width - 1, nextY, map)) {
+                    player.vy = 0;
+                } else {
+                    player.y = nextY;
+                }
+            }            
         }
 
         SDL_SetWindowFullscreen(window, win_mode);
-        render_quad_screen(canvas);
         GLint mouse = glGetUniformLocation(canvas.shader_program, "mouse");
         GLint time_u = glGetUniformLocation(canvas.shader_program, "time");
         GLint player_position = glGetUniformLocation(canvas.shader_program, "player_position");
@@ -413,20 +453,29 @@ int main(int argc, char* argv[]) {
         info_log_shader(resolution);
         info_log_shader(player_position);
 
-
         glUniform2f(player_position, (float)player.x/((float)300/2) - 1, -(float)player.y/((float)300/2) + 1);
         glUniform2f(mouse, (float)mousex/((float)w/2) - 1, -(float)mousey/((float)h/2) + 1);
         glUniform2f(resolution, w, h);
         glUniform1f(time_u, time);
 
-
-        // post process pass
-        glBindFramebuffer(GL_FRAMEBUFFER, canvas.frame_buffer_id);
-        glBindTexture(GL_TEXTURE_2D, canvas.texture);
+        // [MOUNIR] : second pass here
+        glViewport(0, 0, w, h);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        render_quad_post_processing(canvas);
+
+        resolution = glGetUniformLocation(canvas.post_process_shader_program, "resolution");
+        time_u = glGetUniformLocation(canvas.post_process_shader_program, "time");
+        info_log_shader(resolution);
+
+        glUniform2f(resolution, w, h);
+        glUniform1f(time_u, time);
+        // GLint current_program;
+        // glGetIntegerv(GL_CURRENT_PROGRAM, &current_program);
+        // printf("Current program: %d, Expected: %d\n", current_program, canvas.post_process_shader_program);
+    
 
         SDL_GL_SwapWindow(window);
     }

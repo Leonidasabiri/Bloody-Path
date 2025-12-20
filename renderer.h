@@ -44,12 +44,16 @@ typedef struct
     GLuint  shader_program;
     GLuint  vertex_shader;
     GLuint  fragment_shader;
+    GLuint  post_process_shader;
+    GLuint  post_process_shader_program;
     GLuint  texture;
     GLuint  frame_buffer_texture;
     GLuint  frame_buffer_id;
     GLuint  render_buffer_object;
     char    *buffer;
     int     texture_dimensions;
+    int     width;
+    int     height;
 }window_canvas_t;
 
 typedef enum
