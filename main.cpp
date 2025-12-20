@@ -16,6 +16,7 @@
 #include "map_parser.h"
 #include "renderer.h"
 #include "player.h"
+#include "stb_image.h"
 
 
 const char *game_name = "Bloody Path";
@@ -23,8 +24,8 @@ const char *game_name = "Bloody Path";
 
 void findPlayerStart(Map* map, Player* player) {
     if (!map || !player) return;
-    float tileWidth = (float)300 / map->width;
-    float tileHeight = (float)300 / map->height;
+    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
 
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
@@ -39,8 +40,8 @@ void findPlayerStart(Map* map, Player* player) {
             }
         }
     }
-    player->x = 300/2;
-    player->y = 300/2;
+    player->x = TEXTURE_DEMENSIONS/2;
+    player->y = TEXTURE_DEMENSIONS/2;
     player->width = tileWidth/2;
     player->height = tileHeight;
     player->vy = 0;
@@ -50,8 +51,8 @@ void findPlayerStart(Map* map, Player* player) {
 bool checkWallCollision(float x, float y, Map* map) {
     if (!map) return true; // Treat no map as a solid wall
 
-    float tileWidth = (float)300 / map->width;
-    float tileHeight = (float)300 / map->height;
+    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
 
     int mapX = (int)(x / tileWidth);
     int mapY = (int)(y / tileHeight);
@@ -83,6 +84,27 @@ bool checkCheckpointCollision(Player* player, Map* map) {
 
     return map->tile_types[mapY][mapX] == TILE_CHECKPOINT;
 }
+
+bool checkSpikeCollision(Player* player, Map* map) {
+    if (!map) return false;
+
+    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
+
+    // Get player center
+    float playerCenterX = player->x + player->width / 2;
+    float playerCenterY = player->y + player->height / 2;
+
+    int mapX = (int)(playerCenterX / tileWidth);
+    int mapY = (int)(playerCenterY / tileHeight);
+
+    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
+        return false;
+    }
+
+    return map->tile_types[mapY][mapX] == TILE_SPIKE;
+}
+
 
 shader_t shader(const char* path, shader_type type)
 {
