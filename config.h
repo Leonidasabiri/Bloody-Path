@@ -1,11 +1,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define PLAYER_SPEED 5.0f
-#define GRAVITY 0.9f
-#define JUMP_STRENGTH -12.0f
+#define SCREEN_WIDTH 1040
+#define SCREEN_HEIGHT 980
+#define PLAYER_SPEED 2.0f
+#define GRAVITY 0.5f
+#define JUMP_STRENGTH -9.0f
+
+#define WALL_SPRITE_X 24
+#define WALL_SPRITE_Y 24
 
 #endif // CONFIG_H
 

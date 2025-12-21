@@ -17,7 +17,7 @@
 
 typedef struct
 {
-    float r, g, b, a;
+    int r, g, b, a;
 } color_t;
 
 
@@ -44,10 +44,16 @@ typedef struct
     GLuint  shader_program;
     GLuint  vertex_shader;
     GLuint  fragment_shader;
+    GLuint  post_process_shader;
+    GLuint  post_process_shader_program;
     GLuint  texture;
+    GLuint  frame_buffer_texture;
     GLuint  frame_buffer_id;
+    GLuint  render_buffer_object;
     char    *buffer;
     int     texture_dimensions;
+    int     width;
+    int     height;
 }window_canvas_t;
 
 typedef enum
@@ -86,7 +92,8 @@ void renderFrame(GameRenderer gameRenderer, Map* map, Player* player);
  * @param gameRenderer The game renderer instance to destroy.
  */
 void destroyRenderer(GameRenderer* gameRenderer);
-void renderMap(char* pixels, Map* map);
-void draw_pixel(int x, int y, color_t color, char* pixels);
+void renderMap(unsigned char* pixels, Map* map);
+void draw_pixel(int x, int y, color_t color, unsigned char* pixels);
+void renderPlayer(unsigned char* pixels, Player* player, unsigned char*);
 
 #endif // RENDERER_H
