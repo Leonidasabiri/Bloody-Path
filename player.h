@@ -22,7 +22,11 @@ typedef struct {
     float checkpointX; // X coordinate of last checkpoint
     float checkpointY; // Y coordinate of last checkpoint
     Uint32 spikeTimer; // Timer for spike respawn
-    
+    Uint32 startLevelTimer;
+
+    float health;
+    float max_health;
+
     // Animation fields
     AnimationType currentAnim;
     int currentFrame;

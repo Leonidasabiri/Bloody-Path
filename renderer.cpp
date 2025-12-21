@@ -20,19 +20,20 @@ void render_tile(vec2_t w, vec2_t h, color_t color, unsigned char* pixels, unsig
         tx = 0;
         for (int x = w.x; x < w.y; x++) 
         {
-            if (texture)
-            {
-                int sample_index = ((int)ty * tw + (int)tx);
-                color_t color = 
-                {
-                    texture[sample_index * 4 + 0],
-                    texture[sample_index * 4 + 1],
-                    texture[sample_index * 4 + 2],
-                    texture[sample_index * 4 + 3]
-                };
-                draw_pixel(x, y, color, pixels);
-            }
-            else
+            // if (texture)
+            // {
+            //     int sample_index = ((int)ty * tw + (int)tx);
+            //     color_t color = 
+            //     {
+            //         texture[sample_index * 4 + 0],
+            //         texture[sample_index * 4 + 1],
+            //         texture[sample_index * 4 + 2],
+            //         texture[sample_index * 4 + 3]
+            //     };
+            //     if (color.a != 0)
+            //         draw_pixel(x, y, color, pixels);
+            // }
+            // else
                 draw_pixel(x, y, color, pixels);
             tx += step_tx;
         }
@@ -57,7 +58,7 @@ void renderMap(unsigned char* pixels, Map* map) {
                     render_tile(w, h, {50, 50, 50, 255}, pixels, texture, WALL_SPRITE_X, WALL_SPRITE_Y);
                     break;
                 case TILE_WALL:
-                    render_tile(w, h, {100, 100, 100, 255}, pixels, map->wall_texture, WALL_SPRITE_X, WALL_SPRITE_Y);
+                    render_tile(w, h, {100, 100, 100, 255}, pixels, texture, WALL_SPRITE_X, WALL_SPRITE_Y);
                     break;
                 case TILE_WALL_TOP_EDGE:
                     render_tile(w, h, {255, 100, 0, 255}, pixels, texture, WALL_SPRITE_X, WALL_SPRITE_Y);
@@ -169,17 +170,16 @@ void renderMap(unsigned char* pixels, Map* map) {
     }
 }
 
-// void renderPlayer(unsigned char* pixels, Player* player, unsigned char* frame) {
-//     if (!player) 
-//     {
-//         return;
-//     }
-//     vec2_t playerpos = { (int)player->x, (int)player->x + (int)player->width} ;
-//     vec2_t player_dimension = {(int)player->y, (int)player->y + (int)player->height };
+void renderPlayer(unsigned char* pixels, Player* player, unsigned char* frame) {
+    if (!player) 
+    {
+        return;
+    }
+    vec2_t playerpos = { (int)player->x, (int)player->x + (int)player->width} ;
+    vec2_t player_dimension = {(int)player->y, (int)player->y + (int)player->height };
 
-//     render_tile(playerpos, player_dimension, {255, 0, 0, 255}, pixels, frame);
-// }
-
+    render_tile(playerpos, player_dimension, {255, 0, 0, 255}, pixels, frame, 32, 32);
+}
 
 // void renderFrame(GameRenderer gameRenderer, Map* map, Player* player) {
 

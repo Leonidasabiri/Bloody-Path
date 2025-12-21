@@ -170,6 +170,10 @@ static void analyzeMap(Map* map) {
                 map->tile_types[y][x] = TILE_EXIT;
                 continue;
             }
+            if (current_char == 'I') {
+                map->tile_types[y][x] = TILE_SPIKE_INVERSED;
+                continue;
+            }
             if (current_char != '#') {
                 map->tile_types[y][x] = TILE_EMPTY;
                 continue;

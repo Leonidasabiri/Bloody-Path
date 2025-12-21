@@ -428,6 +428,8 @@ int main(int argc, char* argv[]) {
     player.deathAnimStartTime = 0;
     player.deathStartX = 0;
     player.deathStartY = 0;
+    player.max_health = 30;
+    player.health = player.max_health;
     player.travelStartTime = 0;
     player.idle_frames[0] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 0, 32 * 1}, sprite_w),
     player.idle_frames[1] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 1, 32 * 2}, {32 * 0, 32 * 1}, sprite_w);
@@ -457,9 +459,12 @@ int main(int argc, char* argv[]) {
     player.jump_frames[2] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 2, 32 * 3}, {32 * 2, 32 * 3}, sprite_w);
     player.jump_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 3, 32 * 4}, {32 * 2, 32 * 3}, sprite_w);
 
-    map->wall_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 1, WALL_SPRITE_X * 2}, {WALL_SPRITE_Y * 0, WALL_SPRITE_Y * 1}, tiles_sprite_w);
-    map->empty_tile_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 3, WALL_SPRITE_X * 4}, {WALL_SPRITE_Y * 3, WALL_SPRITE_Y * 4}, tiles_sprite_w);
+    // map->wall_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 1, WALL_SPRITE_X * 2}, {WALL_SPRITE_Y * 0, WALL_SPRITE_Y * 1}, tiles_sprite_w);
+    // map->empty_tile_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 3, WALL_SPRITE_X * 4}, {WALL_SPRITE_Y * 3, WALL_SPRITE_Y * 4}, tiles_sprite_w);
     // map->exit_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 0, WALL_SPRITE_Y * 1}, {WALL_SPRITE_X * 0, WALL_SPRITE_Y * 1}, tiles_sprite_w);
+
+
+    player.startLevelTimer = SDL_GetTicks();
 
     while (1) {
         int w, h;
@@ -479,6 +484,58 @@ int main(int argc, char* argv[]) {
         renderMap(pixels, map);
         draw_pixel(10, 10, {255, 0, 0, 255}, pixels);
 
+        Uint32 impact_seconds_elapsed = SDL_GetTicks() - player.startLevelTimer;
+        float impact_seconds = impact_seconds_elapsed / 1000.0f;
+
+        // render player health bar
+        for (int y = 0 ; y < 11; y++)
+        {
+            for (int x = 0 ; x < 32; x++)
+                draw_pixel(x + player.x - 10, y + player.y - 20, {24, 24, 24, 255}, pixels);
+        }
+        for (int y = 0 ; y < 11; y++)
+        {
+            for (int x = 0 ; x < player.max_health * player.health/player.max_health; x++)
+                draw_pixel((x + player.x - 10), y + player.y - 20, {244, 24, 24, 255}, pixels);
+        }
+
+        // render timer bar
+        for (int y = 0 ; y < 2; y++)
+        {
+            for (int x = 0 ; x < 32; x++)
+                draw_pixel(x + player.x - 10, y + player.y - 20, {24, 24, 24, 255}, pixels);
+        }
+        for (int y = 0 ; y < 2; y++)
+        {
+            for (int x = 0 ; x < 32 * (10 - impact_seconds)/10; x++)
+                draw_pixel((x + player.x - 10), y + player.y - 20, {0 + x, 255 - x, 0, 255}, pixels);
+        }
+
+        if (impact_seconds >= 10) 
+        {
+            if (loadLevel(currentLevel)) {
+                findPlayerStart(map, &player); // Reset player position for new level
+                // Reset animation state for new level
+                player.currentAnim = ANIM_IDLE;
+                player.currentFrame = 0;
+                player.lastFrameTime = SDL_GetTicks();
+                player.facingRight = true;
+                player.isDying = false;
+                player.isWaitingToRespawn = false;
+                player.isRespawning = false;
+                player.deathAnimStartTime = 0;
+                player.deathStartX = 0;
+                player.deathStartY = 0;
+                player.travelStartTime = 0;
+                // Reset spike timer when entering new level
+                player.touchedSpike = false;
+                player.spikeTimer = 0;
+                player.health = player.max_health;
+                player.startLevelTimer = SDL_GetTicks();
+            }         
+        }
+
+        // render player
         for (int y = 0 ; y < 32; y++)
         {
             for (int x = 0 ; x < 32; x++)
@@ -630,12 +687,15 @@ int main(int argc, char* argv[]) {
                 player.spikeTimer = SDL_GetTicks();
             }
         }
+
+
+        Uint32 elapsedTime = SDL_GetTicks() - player.spikeTimer;
         // Check if 10 seconds have passed since touching spike
         if (player.touchedSpike && !player.isDying && !player.isWaitingToRespawn && !player.isRespawning) {
             Uint32 elapsedTime = SDL_GetTicks() - player.spikeTimer;
             float seconds = elapsedTime / 1000.0f;
-            
-            if (seconds >= 10.0f) {
+
+            if (seconds >= 0.0f) {
                 // 10 seconds have passed - start death animation
                 player.isDying = true;
                 player.isWaitingToRespawn = true;
@@ -646,6 +706,7 @@ int main(int argc, char* argv[]) {
                 // Store starting position (death stays at this location)
                 player.deathStartX = player.x;
                 player.deathStartY = player.y;
+                player.health -= 4.5;
             }
         }
         // Handle death animation, travel, and respawn sequence
@@ -740,6 +801,8 @@ int main(int argc, char* argv[]) {
         int gridX = (int)(playerCenterX / tileWidth);
         int gridY = (int)(playerCenterY / tileHeight);
         if (::checkCheckpointCollision(map, gridX, gridY, &player.checkpointX, &player.checkpointY)) {
+            player.health = player.max_health;
+            player.startLevelTimer = SDL_GetTicks();
         }
             if (checkExitCollisionLocal(&player, map)) {
                 currentLevel++;
@@ -760,6 +823,8 @@ int main(int argc, char* argv[]) {
                     // Reset spike timer when entering new level
                     player.touchedSpike = false;
                     player.spikeTimer = 0;
+                    player.health = player.max_health;
+                    player.startLevelTimer = SDL_GetTicks();
                 }         
             }
             else {

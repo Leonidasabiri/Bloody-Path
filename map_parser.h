@@ -9,6 +9,8 @@ typedef enum {
     TILE_EXIT,
     TILE_SPIKE,
     TILE_SPIKE_BLOODY,
+    TILE_SPIKE_INVERSED,
+    TILE_SPIKE_INVERSED_BLOODY,
     TILE_WALL_INDESTRUCTIBLE,
 
     // Auto-tiled wall pieces
