@@ -28,7 +28,7 @@ static void cleanup_and_fail(FILE* file, Map* map, int allocated_rows) {
 }
 
 Map* loadMap(const char* filename) {
-    FILE* file = fopen(filename, "r");
+        FILE* file = fopen(filename, "r");
     if (!file) {
         perror("Error opening map file");
         return NULL;
@@ -71,6 +71,11 @@ Map* loadMap(const char* filename) {
 
     map->width = width;
     map->height = height;
+    map->checkpoints = NULL;
+    map->checkpointCount = 0;
+    map->hasExit = false;
+    map->exit.x = 0;
+    map->exit.y = 0;
     map->data = (char**)malloc(height * sizeof(char*));
     map->tile_types = (TileType**)malloc(height * sizeof(TileType*));
     if (!map->data || !map->tile_types) {
@@ -80,7 +85,6 @@ Map* loadMap(const char* filename) {
 
     // Second pass to read data
     rewind(file);
-    // printf("ff\n");
     int current_row = 0;
     while (fgets(line, sizeof(line), file) && current_row < height) {
         line[strcspn(line, "\r\n")] = 0;
@@ -95,10 +99,18 @@ Map* loadMap(const char* filename) {
         strcpy(map->data[current_row], line);
         current_row++;
     }
+
     fclose(file);
 
     // Third pass to analyze the map and determine tile types
     analyzeMap(map);
+
+    // Fourth pass to collect checkpoint locations
+    collectCheckpoints(map);
+
+    // Fifth pass to find the exit
+    findExit(map);
+
     return map;
 }
 
@@ -202,7 +214,7 @@ static void analyzeMap(Map* map) {
 
 // --- Checkpoint Collection Logic ---
 
-static void collectCheckpoints(Map* map) {
+void collectCheckpoints(Map* map) {
     // First pass: count checkpoints
     int count = 0;
     for (int y = 0; y < map->height; ++y) {
@@ -285,7 +297,7 @@ void resetCheckpoints(Map* map) {
 
 // --- Exit Management Functions ---
 
-static void findExit(Map* map) {
+void findExit(Map* map) {
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
             if (map->tile_types[y][x] == TILE_EXIT) {

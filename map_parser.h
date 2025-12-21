@@ -95,5 +95,7 @@ void resetCheckpoints(Map* map);
  * @return true if the player reached the exit, false otherwise.
  */
 bool checkExitCollision(Map* map, int playerX, int playerY);
+void collectCheckpoints(Map* map);
+void findExit(Map* map);
 
 #endif // MAP_PARSER_H
