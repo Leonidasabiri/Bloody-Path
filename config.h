@@ -7,6 +7,9 @@
 #define GRAVITY 0.5f
 #define JUMP_STRENGTH -9.0f
 
+#define WALL_SPRITE_X 24
+#define WALL_SPRITE_Y 24
+
 #endif // CONFIG_H
 
 // Center Wall: White

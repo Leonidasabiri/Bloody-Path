@@ -63,6 +63,6 @@ void main()
 
     if (texture(t, uvtex) == vec4(1. , 0., 0., 1.))
         lightColor = vec4(1. , 0., 0., 1.);
-    gl_FragColor = lightColor;//texture(t, uvtex);
+    gl_FragColor = lightColor;// texture(t, uvtex);
 }
 

@@ -86,7 +86,11 @@ bool checkSpikeCollision(Player* player, Map* map) {
         return false;
     }
 
-    return map->tile_types[mapY][mapX] == TILE_SPIKE;
+    if (map->tile_types[mapY][mapX] == TILE_SPIKE || map->tile_types[mapY][mapX] == TILE_SPIKE_BLOODY)
+    {
+        map->tile_types[mapY][mapX] = TILE_SPIKE_BLOODY;
+    }
+    return map->tile_types[mapY][mapX] == TILE_SPIKE_BLOODY;
 }
 
 bool checkExitCollisionLocal(Player* player, Map* map) {
@@ -396,7 +400,9 @@ int main(int argc, char* argv[]) {
     findPlayerStart(map, &player);
     // the whole sprite sheet goes here
     int sprite_w, sprite_h, channels;
+    int tiles_sprite_w, tiles_sprite_h, tiles_sprite_channels;
     unsigned char* sprite_sheet = stbi_load("assets/Hooded Protagonist Animation Sheet.png", &sprite_w, &sprite_h, &channels, 4);
+    unsigned char* tiles_sprite = stbi_load("assets/Dungeon_Tileset.png", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
     player.touchedSpike = false;
     player.spikeTimer = 0;
 
@@ -410,7 +416,7 @@ int main(int argc, char* argv[]) {
     float time = 0;
 
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
-// Initialize animation state
+    // Initialize animation state
     player.currentAnim = ANIM_IDLE;
     player.currentFrame = 0;
     player.lastFrameTime = SDL_GetTicks();
@@ -451,6 +457,9 @@ int main(int argc, char* argv[]) {
     player.jump_frames[2] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 2, 32 * 3}, {32 * 2, 32 * 3}, sprite_w);
     player.jump_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 3, 32 * 4}, {32 * 2, 32 * 3}, sprite_w);
 
+    map->wall_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 1, WALL_SPRITE_X * 2}, {WALL_SPRITE_Y * 0, WALL_SPRITE_Y * 1}, tiles_sprite_w);
+    map->empty_tile_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 3, WALL_SPRITE_X * 4}, {WALL_SPRITE_Y * 3, WALL_SPRITE_Y * 4}, tiles_sprite_w);
+    // map->exit_texture = exctract_sprite_sheet_sample(tiles_sprite, {WALL_SPRITE_X * 0, WALL_SPRITE_Y * 1}, {WALL_SPRITE_X * 0, WALL_SPRITE_Y * 1}, tiles_sprite_w);
 
     while (1) {
         int w, h;
@@ -468,8 +477,7 @@ int main(int argc, char* argv[]) {
         time += 0.1;
 
         renderMap(pixels, map);
-        renderPlayer(pixels, &player, 0);
-        // test samping
+        draw_pixel(10, 10, {255, 0, 0, 255}, pixels);
 
         for (int y = 0 ; y < 32; y++)
         {
@@ -477,49 +485,53 @@ int main(int argc, char* argv[]) {
             {
                 int xx = x, yy = y;
 
+                int sample_index = (yy * 32 + x);
+
+                if (!player.facingRight)
+                    sample_index = (yy * 32 + 32 - x);
                 color_t texel = {
-                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 0],
-                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 1],
-                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 2],
-                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 3]
+                    player.idle_frames[player.currentFrame][sample_index * 4 + 0],
+                    player.idle_frames[player.currentFrame][sample_index * 4 + 1],
+                    player.idle_frames[player.currentFrame][sample_index * 4 + 2],
+                    player.idle_frames[player.currentFrame][sample_index * 4 + 3]
                 };
                 color_t texelw = {
-                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 0],
-                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 1],
-                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 2],
-                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 3]
+                    player.walking_frames[player.currentFrame][sample_index * 4 + 0],
+                    player.walking_frames[player.currentFrame][sample_index * 4 + 1],
+                    player.walking_frames[player.currentFrame][sample_index * 4 + 2],
+                    player.walking_frames[player.currentFrame][sample_index * 4 + 3]
                 };
                 color_t texeld = {
-                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 0],
-                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 1],
-                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 2],
-                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 3]
+                    player.death_frames[player.currentFrame][sample_index * 4 + 0],
+                    player.death_frames[player.currentFrame][sample_index * 4 + 1],
+                    player.death_frames[player.currentFrame][sample_index * 4 + 2],
+                    player.death_frames[player.currentFrame][sample_index * 4 + 3]
                 };
                 color_t texelj = {
-                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 0],
-                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 1],
-                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 2],
-                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 3]
+                    player.jump_frames[(int)(time)%4][sample_index * 4 + 0],
+                    player.jump_frames[(int)(time)%4][sample_index * 4 + 1],
+                    player.jump_frames[(int)(time)%4][sample_index * 4 + 2],
+                    player.jump_frames[(int)(time)%4][sample_index * 4 + 3]
                 };
                 if (player.currentAnim == ANIM_IDLE)
                 {
                     if (texel.a != 0)
-                        draw_pixel(x + player.x, y + player.y - 10, texel, pixels);
+                        draw_pixel(x + player.x - 10, y + player.y - 10, texel, pixels);
                 }
                 if (player.currentAnim == ANIM_RUN)
                 {
                     if (texelw.a != 0)
-                        draw_pixel(x + player.x, y + player.y - 10, texelw, pixels);
+                        draw_pixel(x + player.x - 10, y + player.y - 10, texelw, pixels);
                 }
                 if (player.currentAnim == ANIM_DIE)
                 {
                     if (texeld.a != 0)
-                        draw_pixel(x + player.x, y + player.y - 10, texeld, pixels);
+                        draw_pixel(x + player.x - 10, y + player.y - 10, texeld, pixels);
                 }
                 if (player.currentAnim == ANIM_JUMP)
                 {
                     if (texelj.a != 0)
-                        draw_pixel(x + player.x, y + player.y - 10, texelj, pixels);
+                        draw_pixel(x + player.x - 10, y + player.y - 10, texelj, pixels);
                 }
             }
         }

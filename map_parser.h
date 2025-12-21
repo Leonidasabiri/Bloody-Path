@@ -8,6 +8,7 @@ typedef enum {
     TILE_CHECKPOINT,
     TILE_EXIT,
     TILE_SPIKE,
+    TILE_SPIKE_BLOODY,
     TILE_WALL_INDESTRUCTIBLE,
 
     // Auto-tiled wall pieces
@@ -49,6 +50,11 @@ typedef struct {
     int checkpointCount; // Number of checkpoints
     Exit exit; // The level exit (only one per map)
     bool hasExit; // Whether the map has an exit tile
+    unsigned char    *empty_tile_texture;
+    unsigned char    *wall_texture;
+    unsigned char    *check_point_texture;
+    unsigned char    *exit_texture;
+    unsigned char    *spike_texture;
 } Map;
 
 /**
