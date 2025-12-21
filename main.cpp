@@ -69,26 +69,6 @@ bool checkWallCollision(float x, float y, Map* map) {
     return tile == 'W' || tile == '#';
 }
 
-bool checkCheckpointCollision(Player* player, Map* map) {
-    if (!map) return false;
-
-    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
-    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
-
-    // Get player center
-    float playerCenterX = player->x + player->width / 2;
-    float playerCenterY = player->y + player->height / 2;
-
-    int mapX = (int)(playerCenterX / tileWidth);
-    int mapY = (int)(playerCenterY / tileHeight);
-
-    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
-        return false;
-    }
-
-    return map->tile_types[mapY][mapX] == TILE_CHECKPOINT;
-}
-
 bool checkSpikeCollision(Player* player, Map* map) {
     if (!map) return false;
 
@@ -472,8 +452,6 @@ int main(int argc, char* argv[]) {
     player.jump_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 3, 32 * 4}, {32 * 2, 32 * 3}, sprite_w);
 
 
-    printf("%lf %lf\n", player.checkpointX, player.checkpointY);
-
     while (1) {
         int w, h;
         SDL_GetMouseState(&mousex, &mousey);
@@ -749,7 +727,8 @@ int main(int argc, char* argv[]) {
         float playerCenterY = player.y + player.height / 2;
         int gridX = (int)(playerCenterX / tileWidth);
         int gridY = (int)(playerCenterY / tileHeight);
-
+        if (::checkCheckpointCollision(map, gridX, gridY, &player.checkpointX, &player.checkpointY)) {
+        }
             if (checkExitCollisionLocal(&player, map)) {
                 currentLevel++;
                 if (loadLevel(currentLevel)) {

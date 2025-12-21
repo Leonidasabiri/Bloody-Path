@@ -39,7 +39,6 @@ typedef struct {
     int y;
 } Exit;
 
-
 // Represents the game map
 typedef struct {
     char** data;
@@ -50,7 +49,6 @@ typedef struct {
     int checkpointCount; // Number of checkpoints
     Exit exit; // The level exit (only one per map)
     bool hasExit; // Whether the map has an exit tile
-    // unsigned char* ;
 } Map;
 
 /**
@@ -67,5 +65,35 @@ Map* loadMap(const char* filename);
  * @param map The map to destroy.
  */
 void destroyMap(Map* map);
+
+/**
+ * @brief Checks if the player is colliding with any checkpoint and activates it.
+ * Updates player's checkpoint coordinates if a new checkpoint is touched.
+ * 
+ * @param map The game map containing checkpoints.
+ * @param playerX Player's X position in grid coordinates.
+ * @param playerY Player's Y position in grid coordinates.
+ * @param checkpointX Pointer to store the checkpoint X coordinate.
+ * @param checkpointY Pointer to store the checkpoint Y coordinate.
+ * @return true if a new checkpoint was activated, false otherwise.
+ */
+bool checkCheckpointCollision(Map* map, int playerX, int playerY, float* checkpointX, float* checkpointY);
+
+/**
+ * @brief Resets all checkpoints in the map to inactive state.
+ * 
+ * @param map The game map.
+ */
+void resetCheckpoints(Map* map);
+
+/**
+ * @brief Checks if the player is colliding with the exit tile.
+ * 
+ * @param map The game map containing the exit.
+ * @param playerX Player's X position in grid coordinates.
+ * @param playerY Player's Y position in grid coordinates.
+ * @return true if the player reached the exit, false otherwise.
+ */
+bool checkExitCollision(Map* map, int playerX, int playerY);
 
 #endif // MAP_PARSER_H

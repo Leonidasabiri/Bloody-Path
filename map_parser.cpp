@@ -251,6 +251,7 @@ bool checkCheckpointCollision(Map* map, int playerX, int playerY, float* checkpo
         return false;
     }
 
+
     for (int i = 0; i < map->checkpointCount; i++) {
         Checkpoint* cp = &map->checkpoints[i];
         
