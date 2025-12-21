@@ -36,6 +36,8 @@ void findPlayerStart(Map* map, Player* player) {
                 player->height = tileHeight;
                 player->vy = 0;
                 player->onGround = false;
+                player->checkpointX = (float)x;
+                player->checkpointY = (float)y;
                 return;
             }
         }
@@ -46,6 +48,8 @@ void findPlayerStart(Map* map, Player* player) {
     player->height = tileHeight;
     player->vy = 0;
     player->onGround = false;
+    player->checkpointX = player->x / tileWidth;
+    player->checkpointY = player->y / tileHeight;
 }
 
 bool checkWallCollision(float x, float y, Map* map) {
@@ -68,8 +72,8 @@ bool checkWallCollision(float x, float y, Map* map) {
 bool checkCheckpointCollision(Player* player, Map* map) {
     if (!map) return false;
 
-    float tileWidth = (float)300 / map->width;
-    float tileHeight = (float)300 / map->height;
+    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
+    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
 
     // Get player center
     float playerCenterX = player->x + player->width / 2;
@@ -345,10 +349,11 @@ unsigned char  *exctract_sprite_sheet_sample(unsigned char* sprite_sheet,
     {
         for (int x = 0 ; x < width; x++)
         {
-            frame[(y * width + x) * 4 + 0] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 0];
-            frame[(y * width + x) * 4 + 1] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 1];
-            frame[(y * width + x) * 4 + 2] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 2];
-            frame[(y * width + x) * 4 + 3] = sprite_sheet[((int)ty * texture_width + (int)tx%width) * 4 + 3];
+            frame[(y * width + x) * 4 + 0] = sprite_sheet[((int)ty * texture_width + (int)tx) * 4 + 0];
+            frame[(y * width + x) * 4 + 1] = sprite_sheet[((int)ty * texture_width + (int)tx) * 4 + 1];
+            frame[(y * width + x) * 4 + 2] = sprite_sheet[((int)ty * texture_width + (int)tx) * 4 + 2];
+            frame[(y * width + x) * 4 + 3] = sprite_sheet[((int)ty * texture_width + (int)tx) * 4 + 3];
+            if (tx >= boundsx.y) tx = boundsx.x;
             tx++;
         }
         ty++;
@@ -425,57 +430,49 @@ int main(int argc, char* argv[]) {
     float time = 0;
 
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
+// Initialize animation state
+    player.currentAnim = ANIM_IDLE;
+    player.currentFrame = 0;
+    player.lastFrameTime = SDL_GetTicks();
+    player.frameDelay = 200; // Changed from 150ms to 200ms for slower animation
+    player.facingRight = true;
+    player.isDying = false;
+    player.isWaitingToRespawn = false;
+    player.isRespawning = false;
+    player.deathAnimStartTime = 0;
+    player.deathStartX = 0;
+    player.deathStartY = 0;
+    player.travelStartTime = 0;
+    player.idle_frames[0] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 0, 32 * 1}, sprite_w),
+    player.idle_frames[1] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 1, 32 * 2}, {32 * 0, 32 * 1}, sprite_w);
+    player.idle_frames[2] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 1, 32 * 2}, sprite_w);
+    player.idle_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 1, 32 * 2}, {32 * 1, 32 * 2}, sprite_w);
 
-    unsigned char *frame = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {32 * 3 , 32 * 4}, sprite_w);
+    player.death_frames[0] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 7, 32 * 8}, sprite_w),
+    player.death_frames[1] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 1, 32 * 2}, {32 * 7, 32 * 8}, sprite_w);
+    player.death_frames[2] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 2, 32 * 3}, {32 * 7, 32 * 8}, sprite_w);
+    player.death_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 3, 32 * 4}, {32 * 7, 32 * 8}, sprite_w);
+    player.death_frames[4] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 4, 32 * 5}, {32 * 7, 32 * 8}, sprite_w),
+    player.death_frames[5] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 5, 32 * 6}, {32 * 7, 32 * 8}, sprite_w);
+    player.death_frames[6] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 6, 32 * 7}, {32 * 7, 32 * 8}, sprite_w);
+    player.death_frames[7] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 7, 32 * 8}, {32 * 7, 32 * 8}, sprite_w);
 
-    player.animation_frames[0] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w),
-    player.animation_frames[1] = exctract_sprite_sheet_sample(sprite_sheet, {32, 64}, {32, 64}, sprite_w);
-    player.animation_frames[2] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[3] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[4] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[5] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[6] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[7] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[8] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[9] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[10] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[11] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[12] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[13] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[14] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[15] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[16] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[17] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[18] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[19] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[20] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[21] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[22] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[23] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[24] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[25] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[26] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[27] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[28] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[29] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[30] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[31] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[32] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[33] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[34] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[35] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[36] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[37] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[38] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[39] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[40] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[41] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[42] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[43] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[44] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[45] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[46] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
-    player.animation_frames[47] = exctract_sprite_sheet_sample(sprite_sheet, {0, 32}, {0, 32}, sprite_w);
+    player.walking_frames[0] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 3, 32 * 4}, sprite_w),
+    player.walking_frames[1] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 1, 32 * 2}, {32 * 3, 32 * 4}, sprite_w);
+    player.walking_frames[2] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 2, 32 * 3}, {32 * 3, 32 * 4}, sprite_w);
+    player.walking_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 3, 32 * 4}, {32 * 3, 32 * 4}, sprite_w);
+    player.walking_frames[4] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 4, 32 * 5}, {32 * 3, 32 * 4}, sprite_w),
+    player.walking_frames[5] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 5, 32 * 6}, {32 * 3, 32 * 4}, sprite_w);
+    player.walking_frames[6] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 6, 32 * 7}, {32 * 3, 32 * 4}, sprite_w);
+    player.walking_frames[7] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 7, 32 * 8}, {32 * 3, 32 * 4}, sprite_w);
+
+    player.jump_frames[0] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 2, 32 * 3}, sprite_w),
+    player.jump_frames[1] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 1, 32 * 2}, {32 * 2, 32 * 3}, sprite_w);
+    player.jump_frames[2] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 2, 32 * 3}, {32 * 2, 32 * 3}, sprite_w);
+    player.jump_frames[3] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 3, 32 * 4}, {32 * 2, 32 * 3}, sprite_w);
+
+
+    printf("%lf %lf\n", player.checkpointX, player.checkpointY);
 
     while (1) {
         int w, h;
@@ -492,9 +489,10 @@ int main(int argc, char* argv[]) {
 
         time += 0.1;
 
-        // renderMap(pixels, map);
-        // renderPlayer(pixels, &player, frame);
+        renderMap(pixels, map);
+        renderPlayer(pixels, &player, 0);
         // test samping
+
         for (int y = 0 ; y < 32; y++)
         {
             for (int x = 0 ; x < 32; x++)
@@ -502,18 +500,52 @@ int main(int argc, char* argv[]) {
                 int xx = x, yy = y;
 
                 color_t texel = {
-                    player.animation_frames[0][(yy * 32 + xx) * 4 + 0],
-                    player.animation_frames[0][(yy * 32 + xx) * 4 + 1],
-                    player.animation_frames[0][(yy * 32 + xx) * 4 + 2],
-                    player.animation_frames[0][(yy * 32 + xx) * 4 + 3]
+                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 0],
+                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 1],
+                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 2],
+                    player.idle_frames[player.currentFrame][(yy * 32 + xx) * 4 + 3]
                 };
-                if (texel.a != 0)
-                 draw_pixel(x, y, texel, pixels);
+                color_t texelw = {
+                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 0],
+                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 1],
+                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 2],
+                    player.walking_frames[player.currentFrame][(yy * 32 + xx) * 4 + 3]
+                };
+                color_t texeld = {
+                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 0],
+                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 1],
+                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 2],
+                    player.death_frames[player.currentFrame][(yy * 32 + xx) * 4 + 3]
+                };
+                color_t texelj = {
+                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 0],
+                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 1],
+                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 2],
+                    player.jump_frames[(int)(time)%4][(yy * 32 + xx) * 4 + 3]
+                };
+                if (player.currentAnim == ANIM_IDLE)
+                {
+                    if (texel.a != 0)
+                        draw_pixel(x + player.x, y + player.y - 10, texel, pixels);
+                }
+                if (player.currentAnim == ANIM_RUN)
+                {
+                    if (texelw.a != 0)
+                        draw_pixel(x + player.x, y + player.y - 10, texelw, pixels);
+                }
+                if (player.currentAnim == ANIM_DIE)
+                {
+                    if (texeld.a != 0)
+                        draw_pixel(x + player.x, y + player.y - 10, texeld, pixels);
+                }
+                if (player.currentAnim == ANIM_JUMP)
+                {
+                    if (texelj.a != 0)
+                        draw_pixel(x + player.x, y + player.y - 10, texelj, pixels);
+                }
             }
         }
         render_quad_screen(canvas, pixels);
-
-
 
         while (SDL_PollEvent(&ev))
         {
@@ -525,9 +557,6 @@ int main(int argc, char* argv[]) {
                 {
                     case SDL_SCANCODE_F:
                         win_mode = (win_mode == window_normal) ? window_full_screen : window_normal;
-                        canvas.width = w;    
-                        canvas.height = h;
-                        // canvas =window_quad_multipass(canvas, "shaders/post_processing/bloom.glsl");
                         break;    
                     case SDL_SCANCODE_ESCAPE:
                         return 0;  
@@ -546,13 +575,21 @@ int main(int argc, char* argv[]) {
 
         // 
         {
-    // --- Horizontal Movement ---
-            float nextX = player.x;
+        // --- Horizontal Movement ---
+        float nextX = player.x; 
+        bool isMoving = false;
+        
+        // // Only allow movement if not dying
+        if (!player.isDying) {
             if (keystates[SDL_SCANCODE_LEFT] || keystates[SDL_SCANCODE_A]) {
                 nextX -= PLAYER_SPEED;
+                player.facingRight = false;
+                isMoving = true;
             }
             if (keystates[SDL_SCANCODE_RIGHT] || keystates[SDL_SCANCODE_D]) {
                 nextX += PLAYER_SPEED;
+                player.facingRight = true;
+                isMoving = true;
             }
 
             // Horizontal collision
@@ -565,8 +602,11 @@ int main(int argc, char* argv[]) {
                     player.x = nextX;
                 }
             }
+        }
 
-            // --- Vertical Movement (Gravity) ---
+        // // --- Vertical Movement (Gravity) ---
+        // // Only apply gravity if not dying
+        if (!player.isDying) {
             player.vy += GRAVITY;
             float nextY = player.y + player.vy;
 
@@ -575,7 +615,7 @@ int main(int argc, char* argv[]) {
             if (player.vy > 0) { // Moving down
                 if (checkWallCollision(player.x, nextY + player.height, map) || checkWallCollision(player.x + player.width - 1, nextY + player.height, map)) {
                     // Snap to ground
-                    float tileHeight = (float)300 / map->height;
+                    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
                     player.y = (int)((nextY + player.height) / tileHeight) * tileHeight - player.height;
                     player.vy = 0;
                     player.onGround = true;
@@ -588,7 +628,127 @@ int main(int argc, char* argv[]) {
                 } else {
                     player.y = nextY;
                 }
-            }    
+            }
+        }    // Calculate tile dimensions (needed for multiple checks below)
+        float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
+        float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
+
+         if (checkSpikeCollision(&player, map)) {
+            if (!player.touchedSpike) {
+                // First time touching spike - start the timer
+                player.touchedSpike = true;
+                player.spikeTimer = SDL_GetTicks();
+            }
+        }
+        // Check if 10 seconds have passed since touching spike
+        if (player.touchedSpike && !player.isDying && !player.isWaitingToRespawn && !player.isRespawning) {
+            Uint32 elapsedTime = SDL_GetTicks() - player.spikeTimer;
+            float seconds = elapsedTime / 1000.0f;
+            
+            if (seconds >= 10.0f) {
+                // 10 seconds have passed - start death animation
+                player.isDying = true;
+                player.isWaitingToRespawn = true;
+                player.currentAnim = ANIM_DIE;
+                player.currentFrame = 0;
+                player.lastFrameTime = SDL_GetTicks();
+                player.deathAnimStartTime = SDL_GetTicks();
+                // Store starting position (death stays at this location)
+                player.deathStartX = player.x;
+                player.deathStartY = player.y;
+            }
+        }
+        // Handle death animation, travel, and respawn sequence
+        if (player.isWaitingToRespawn && !player.isRespawning) {
+            Uint32 deathAnimElapsed = SDL_GetTicks() - player.deathAnimStartTime;
+            // Death animation has 8 frames at 150ms each = 1200ms total
+            const Uint32 DEATH_ANIM_DURATION = 8 * 150; // 8 frames * 150ms per frame
+            
+            // Stay at death position during death animation
+            player.x = player.deathStartX;
+            player.y = player.deathStartY;
+            
+            if (deathAnimElapsed >= DEATH_ANIM_DURATION) {
+                // Death animation complete - start traveling last frame to checkpoint
+                player.isWaitingToRespawn = false;
+                player.travelStartTime = SDL_GetTicks();
+                // Keep last frame of death animation (frame 7)
+                player.currentFrame = 7;
+            }
+        }
+        // Travel the last death frame to respawn location
+        if (!player.isWaitingToRespawn && !player.isRespawning && player.isDying && player.travelStartTime > 0) {
+            Uint32 travelElapsed = SDL_GetTicks() - player.travelStartTime;
+            const Uint32 TRAVEL_DURATION = 800; // 800ms to travel to checkpoint
+            
+            // Smoothly interpolate position to respawn point
+            float progress = (float)travelElapsed / (float)TRAVEL_DURATION;
+            if (progress > 1.0f) progress = 1.0f;
+            
+            // Calculate target respawn position
+            // Position player so feet are at the bottom of the checkpoint tile
+            float targetX = player.checkpointX * tileWidth;
+            float targetY = (player.checkpointY + 1) * tileHeight - player.height;
+            
+            // Interpolate position (ease-in-out for smoother motion)
+            float easedProgress = progress * progress * (3.0f - 2.0f * progress); // Smoothstep
+            player.x = player.deathStartX + (targetX - player.deathStartX) * easedProgress;
+            player.y = player.deathStartY + (targetY - player.deathStartY) * easedProgress;
+            
+            // Keep showing last frame of death animation during travel
+            player.currentFrame = 7;
+            
+            if (travelElapsed >= TRAVEL_DURATION) {
+                // Travel complete - start respawn animation (play death backwards)
+                player.isRespawning = true;
+                player.currentFrame = 7; // Start from last frame
+                player.lastFrameTime = SDL_GetTicks();
+                player.travelStartTime = 0;
+                
+                // Ensure we're exactly at checkpoint position
+                player.x = targetX;
+                player.y = targetY;
+            }
+        }
+
+        // Play respawn animation (death animation backwards)
+        if (player.isRespawning) {
+            Uint32 currentTime = SDL_GetTicks();
+            Uint32 elapsedTime = currentTime - player.lastFrameTime;
+            
+            if (elapsedTime >= player.frameDelay) {
+                player.lastFrameTime = currentTime;
+                
+                // Go backwards through death animation frames
+                player.currentFrame--;
+                
+                if (player.currentFrame < 0) {
+                    // Respawn animation complete - return to normal gameplay
+                    
+                    // Reset all death and respawn flags
+                    player.touchedSpike = false;
+                    player.spikeTimer = 0;
+                    player.isDying = false;
+                    player.isRespawning = false;
+                    player.deathAnimStartTime = 0;
+                    player.deathStartX = 0;
+                    player.deathStartY = 0;
+                    
+                    // Return to idle animation
+                    player.currentAnim = ANIM_IDLE;
+                    player.currentFrame = 0;
+                    player.lastFrameTime = SDL_GetTicks();
+                    player.vy = 0;
+                    player.onGround = false;
+                }
+            }
+        }
+
+        // Check for checkpoint collision and save respawn point
+        float playerCenterX = player.x + player.width / 2;
+        float playerCenterY = player.y + player.height / 2;
+        int gridX = (int)(playerCenterX / tileWidth);
+        int gridY = (int)(playerCenterY / tileHeight);
 
             if (checkExitCollisionLocal(&player, map)) {
                 currentLevel++;
@@ -611,6 +771,89 @@ int main(int argc, char* argv[]) {
                     player.spikeTimer = 0;
                 }         
             }
+            else {
+            // Debug: Check if player is near the exit
+                float playerCenterX_exit = player.x + player.width / 2;
+                float playerBottomY = player.y + player.height;
+                int exitGridX = (int)(playerCenterX_exit / tileWidth);
+                int exitGridY = (int)(playerBottomY / tileHeight);
+                
+                // Only print when player is near the exit area
+                if (exitGridX >= 18 && exitGridY >= 10) {
+                    printf("Player pos: (%.1f, %.1f) size: (%.1f, %.1f) Grid: (%d, %d) Exit at: (%d, %d)\n", 
+                        player.x, player.y, player.width, player.height, 
+                        exitGridX, exitGridY, map->exit.x, map->exit.y);
+            }
+        }
+
+        // --- Update Animation State ---
+        if (!player.isDying && !player.isRespawning) {
+            // Determine which animation to play based on player state
+            AnimationType newAnim = ANIM_IDLE;
+            
+            if (!player.onGround) {
+                // Player is in the air - jump animation
+                newAnim = ANIM_JUMP;
+            } else if (isMoving) {
+                // Player is moving on ground - run animation
+                newAnim = ANIM_RUN;
+            } else {
+                // Player is standing still - idle animation
+                newAnim = ANIM_IDLE;
+            }
+            
+            // If animation changed, reset frame
+            if (newAnim != player.currentAnim) {
+                player.currentAnim = newAnim;
+                player.currentFrame = 0;
+                player.lastFrameTime = SDL_GetTicks();
+            }
+
+            // Update animation frame based on time with accumulation
+            Uint32 currentTime = SDL_GetTicks();
+            Uint32 elapsedTime = currentTime - player.lastFrameTime;
+            
+            if (elapsedTime >= player.frameDelay) {
+                // Calculate how many frames we should advance
+                int framesToAdvance = elapsedTime / player.frameDelay;
+                
+                // // Update the last frame time, keeping the remainder for smooth timing
+                player.lastFrameTime += framesToAdvance * player.frameDelay;
+                
+                // Get frame count for current animation
+                int frameCount;
+                switch (player.currentAnim) {
+                    case ANIM_IDLE: frameCount = 4; break;
+                    case ANIM_IDLE_BLINK: frameCount = 4; break;
+                    case ANIM_WALK: frameCount = 6; break;
+                    case ANIM_RUN: frameCount = 8; break;
+                    case ANIM_DUCK: frameCount = 4; break;
+                    case ANIM_JUMP: frameCount = 4; break;
+                    case ANIM_DISAPPEAR: frameCount = 6; break;
+                    case ANIM_DIE: frameCount = 8; break;
+                    case ANIM_ATTACK: frameCount = 6; break;
+                    default: frameCount = 4; break;
+                }
+                
+                // Loop animation
+                player.currentFrame = (player.currentFrame + framesToAdvance) % frameCount;
+            }
+        }
+        if (player.isDying && !player.isRespawning && player.isWaitingToRespawn) {
+            Uint32 currentTime = SDL_GetTicks();
+            Uint32 elapsedTime = currentTime - player.lastFrameTime;
+            
+            if (elapsedTime >= player.frameDelay && player.currentFrame < 7) {
+                int framesToAdvance = elapsedTime / player.frameDelay;
+                player.lastFrameTime += framesToAdvance * player.frameDelay;
+                
+                // Advance death animation, stop at last frame
+                player.currentFrame += framesToAdvance;
+                if (player.currentFrame > 7) { // Ensure we don't go past frame 7
+                    player.currentFrame = 7;
+                }
+            }
+        }
         }
 
         SDL_SetWindowFullscreen(window, win_mode);
@@ -641,11 +884,7 @@ int main(int argc, char* argv[]) {
 
         glUniform2f(resolution, w, h);
         glUniform1f(time_u, time);
-        // GLint current_program;
-        // glGetIntegerv(GL_CURRENT_PROGRAM, &current_program);
-        // printf("Current program: %d, Expected: %d\n", current_program, canvas.post_process_shader_program);
     
-
         SDL_GL_SwapWindow(window);
     }
 

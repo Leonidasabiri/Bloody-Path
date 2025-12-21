@@ -26,7 +26,7 @@ void main()
     }
 
     if (blurred.x >= 0 && blurred.y >= 0)
-         tex += blurred/10;
+         tex += blurred/15;
     
     gl_FragColor = tex;
 }

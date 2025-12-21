@@ -26,12 +26,31 @@ typedef enum {
     TILE_WALL_INNER_BOTTOM_RIGHT_CORNER,
 } TileType;
 
+// Represents a checkpoint location
+typedef struct {
+    int x;
+    int y;
+    bool activated; // Whether the checkpoint has been touched by the player
+} Checkpoint;
+
+// Represents the exit/goal location
+typedef struct {
+    int x;
+    int y;
+} Exit;
+
+
 // Represents the game map
 typedef struct {
     char** data;
     TileType** tile_types;
     int width;
     int height;
+    Checkpoint* checkpoints; // Array of checkpoints in the map
+    int checkpointCount; // Number of checkpoints
+    Exit exit; // The level exit (only one per map)
+    bool hasExit; // Whether the map has an exit tile
+    // unsigned char* ;
 } Map;
 
 /**

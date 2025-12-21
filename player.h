@@ -36,8 +36,11 @@ typedef struct {
     float deathStartX; // Position when death animation started
     float deathStartY; // Position when death animation started
     Uint32 travelStartTime; // When the last frame starts traveling to respawn
-    unsigned char *animation_frames[48];
     GLuint         textures_ids[48];    // for all the frames of all the animations
+    unsigned char *death_frames[8];
+    unsigned char *walking_frames[8];
+    unsigned char *idle_frames[4];
+    unsigned char *jump_frames[4];
 } Player;
 
 #endif // PLAYER_H
