@@ -13,8 +13,8 @@ OBJS = $(SRCS:.cpp=.o)
 # Compiler and linker flags from sdl2-config
 # -std=c++11 is required for the lambda function in main.cpp
 # -Wall -Wextra -g are good practice for warnings and debugging
-CXXFLAGS = -std=c++11 -Wall -Wextra -g $(shell sdl2-config --cflags)
-LIBS = $(shell sdl2-config --libs)
+CXXFLAGS = -std=c++11 -Wall -Wextra -g $(shell sdl2-config --cflags) -I/opt/homebrew/include
+LIBS = $(shell sdl2-config --libs) -L/opt/homebrew/lib -lGLEW -framework OpenGL
 
 # Default rule: build everything
 .PHONY: all
@@ -26,7 +26,7 @@ $(TARGET): $(OBJS)
 
 # Compiling rule: create object files from .cpp source files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -I${USER_ZDOTDIR}/glew-2.1.0/include -lSDL2 -lSDL2main -lGL -lX11  ${USER_ZDOTDIR}/glew-2.1.0/lib/libGLEW.a
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean rule: remove generated files
 .PHONY: clean

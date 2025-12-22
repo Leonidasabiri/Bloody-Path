@@ -1,9 +1,12 @@
 #!/bin/bash
 
+# macOS build script for Bloody Path
+echo "Building Bloody Path for macOS..."
+
 # Check for Homebrew
 if ! command -v brew &> /dev/null
 then
-    echo "Homebrew not found. Please install Homebrew to continue by running:"
+    echo "❌ Homebrew not found. Please install Homebrew first:"
     echo '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
     exit 1
 fi
@@ -11,31 +14,28 @@ fi
 # Check for SDL2
 if ! brew list sdl2 &> /dev/null
 then
-    echo "SDL2 not found. Installing SDL2 with Homebrew..."
+    echo "📦 SDL2 not found. Installing SDL2..."
     brew install sdl2
+else
+    echo "✅ SDL2 is installed"
 fi
 
-# Check for sdl2-config
-if ! command -v sdl2-config &> /dev/null
+# Check for GLEW
+if ! brew list glew &> /dev/null
 then
-    echo "sdl2-config not found. Make sure SDL2 is installed correctly and sdl2-config is in your PATH."
-    exit 1
+    echo "📦 GLEW not found. Installing GLEW..."
+    brew install glew
+else
+    echo "✅ GLEW is installed"
 fi
 
-# Get compiler and linker flags from sdl2-config
-CFLAGS=$(sdl2-config --cflags)
-LIBS=$(sdl2-config --libs)
-
-# Compile the application
-echo "Compiling main.cpp with flags:"
-echo "CFLAGS: $CFLAGS"
-echo "LIBS: $LIBS"
-g++ -std=c++11 main.cpp map_parser.cpp renderer.cpp -o Bloody-Path $CFLAGS $LIBS
+# Build using Makefile
+echo "🔨 Building with make..."
+make clean
+make
 
 # Check if compilation was successful
 if [ $? -eq 0 ]; then
-    echo "Compilation successful. Running the application..."
-    ./Bloody-Path
 else
     echo "Compilation failed."
     exit 1

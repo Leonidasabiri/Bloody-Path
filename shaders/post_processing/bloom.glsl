@@ -5,6 +5,8 @@ uniform vec2 resolution;
 uniform float time;
 in vec2 uvtex;
 
+out vec4 FragColor;
+
 void main()
 {
     float offset = 0.5;
@@ -28,5 +30,5 @@ void main()
     if (blurred.x >= 0 && blurred.y >= 0)
          tex += blurred/15;
     
-    gl_FragColor = tex;
+    FragColor = tex;
 }

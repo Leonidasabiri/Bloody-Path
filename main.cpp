@@ -1,4 +1,3 @@
-
 //  [MOUNIR]: We will create a quad the size of the window, then we gonna take a buffer and fill it with our pixels data, 
 //  so that we can pass the texture to opengl for post processing effects (multi pass rendering basically with more than just a single framebuffer),
 // that's why we have to replace SDL_TEXTURE with our own implementation, to have this controll.
@@ -11,7 +10,6 @@
 #include <SDL2/SDL_opengl.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <GL/gl.h>
 #include "tinyutils.h"
 #include "config.h"
 #include "map_parser.h"
@@ -130,8 +128,10 @@ shader_t shader(const char* path, shader_type type)
 
     if (!shader_file)
     {
-        perror("Shader not found !!");
-        return {};
+        printf("Shader file not found: %s\n", path);
+        perror("Error");
+        shader_s.shader_id = 0;
+        return shader_s;
     }
 
     fseek(shader_file, 0, SEEK_END);
@@ -140,32 +140,56 @@ shader_t shader(const char* path, shader_type type)
     shader_code[file_size] = 0;
     fseek(shader_file, 0, SEEK_SET);
     fread(shader_code, 1, file_size, shader_file);
+    fclose(shader_file);
 
-    GLuint shader = glCreateShader( type );
+    GLuint shader = glCreateShader(type);
 
-    glShaderSource( shader, 1, &shader_code, NULL);
-    glCompileShader( shader );
+    glShaderSource(shader, 1, &shader_code, NULL);
+    glCompileShader(shader);
+    
+    // Check shader compilation
     GLint shaderCompiled = GL_FALSE;
-    glGetShaderiv( shader, GL_COMPILE_STATUS, &shaderCompiled );
-    char infoLog[512];
-    if( shaderCompiled != GL_TRUE )
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &shaderCompiled);
+    
+    if(shaderCompiled != GL_TRUE)
     {
-        glGetProgramInfoLog(shader, 512, NULL, infoLog);
-        printf( "Unable to compile shader %d! %s\n", shader, infoLog );
+        GLint logLength = 0;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+        
+        if(logLength > 0)
+        {
+            char *infoLog = (char*)malloc(logLength);
+            glGetShaderInfoLog(shader, logLength, NULL, infoLog);
+            printf("ERROR: Failed to compile shader: %s\n%s\n", path, infoLog);
+            free(infoLog);
+        }
+        else
+        {
+            printf("ERROR: Failed to compile shader: %s (no error log available)\n", path);
+        }
     }
 
+    free(shader_code);
     shader_s.shader_id = shader;
     return shader_s;
 }
 
 void info_log_shader(GLuint id)
 {
-    int success;
-    char infoLog[512];
+    GLint success = 0;
     glGetProgramiv(id, GL_LINK_STATUS, &success);
+    
     if (!success) {
-        glGetProgramInfoLog(id, 512, NULL, infoLog);
-        printf("ERROR::SHADER::PROGRAM::LINKING_FAILED %s\n", infoLog);
+        GLint logLength = 0;
+        glGetProgramiv(id, GL_INFO_LOG_LENGTH, &logLength);
+        
+        if(logLength > 0)
+        {
+            char *infoLog = (char*)malloc(logLength);
+            glGetProgramInfoLog(id, logLength, NULL, infoLog);
+            printf("ERROR::SHADER::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
+            free(infoLog);
+        }
     }
 }
 
@@ -346,39 +370,63 @@ unsigned char  *exctract_sprite_sheet_sample(unsigned char* sprite_sheet,
 }
 
 int main(int argc, char* argv[]) {
+    (void)argc;  // Suppress unused parameter warning
+    (void)argv;  // Suppress unused parameter warning
 
-    int textw = 100, texth = 100;
+    // Initialize SDL first
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        return 1;
+    }
 
+    // Set OpenGL attributes BEFORE creating the window
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    // Create window with OpenGL flag
     windowmode_t win_mode = window_normal;
-    SDL_Window* window = SDL_CreateWindow(game_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, win_mode | SDL_WINDOW_OPENGL);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_GLContext context = SDL_GL_CreateContext(window);
+    SDL_Window* window = SDL_CreateWindow(game_name, 
+                                          SDL_WINDOWPOS_UNDEFINED, 
+                                          SDL_WINDOWPOS_UNDEFINED, 
+                                          SCREEN_WIDTH, 
+                                          SCREEN_HEIGHT, 
+                                          SDL_WINDOW_OPENGL | win_mode);
+    
+    if (!window) {
+        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
 
+    // Create OpenGL context
+    SDL_GLContext context = SDL_GL_CreateContext(window);
     if (!context) {
         printf("SDL_GL_CreateContext error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+    
+    // Make the context current
     SDL_GL_MakeCurrent(window, context);
+    
+    // Enable VSync
+    SDL_GL_SetSwapInterval(1);
 
-    unsigned char* pixels = (unsigned char*)malloc(300 * 300 * 4);
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+    // Initialize GLEW
+    GLenum glewError = glewInit();
+    if (glewError != GLEW_OK) {
+        printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
+        SDL_GL_DeleteContext(context);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return 1;
     }
 
-    int y = 12, x = 12;
-
-    GLenum glewError = glewInit();
-    if( glewError != GLEW_OK )
-    {
-        printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
-    }
+    unsigned char* pixels = (unsigned char*)malloc(300 * 300 * 4);
 
     int currentLevel = 1;
     Map* map = NULL;
@@ -392,6 +440,9 @@ int main(int argc, char* argv[]) {
 
     if (!loadLevel(currentLevel)) {
         printf("Failed to load initial level.\n");
+        free(pixels);
+        SDL_GL_DeleteContext(context);
+        SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
@@ -403,6 +454,8 @@ int main(int argc, char* argv[]) {
     int tiles_sprite_w, tiles_sprite_h, tiles_sprite_channels;
     unsigned char* sprite_sheet = stbi_load("assets/Hooded Protagonist Animation Sheet.png", &sprite_w, &sprite_h, &channels, 4);
     unsigned char* tiles_sprite = stbi_load("assets/Dungeon_Tileset.png", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
+    (void)tiles_sprite;  // Suppress unused variable warning
+    
     player.touchedSpike = false;
     player.spikeTimer = 0;
 
@@ -944,7 +997,6 @@ int main(int argc, char* argv[]) {
         SDL_GL_SwapWindow(window);
     }
 
-    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
