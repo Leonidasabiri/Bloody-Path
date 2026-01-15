@@ -243,6 +243,10 @@ void render_quad_screen(window_canvas_t canvas_quad)
                             canvas_quad.texturee.texture_width, 
                             canvas_quad.texturee.texture_height, 0, 
                             GL_RGBA, GL_UNSIGNED_BYTE, canvas_quad.texturee.texture_data);
+    GLint player_position = glGetUniformLocation(canvas_quad.shader_program, "player_position");
+    GLint scale = glGetUniformLocation(canvas_quad.shader_program, "scale");
+    glUniform2f(player_position, canvas_quad.position.x, canvas_quad.position.y);
+    glUniform1f(scale, canvas_quad.scale);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(canvas_quad.vertex_array);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

@@ -146,7 +146,7 @@ unsigned char  *exctract_sprite_sheet_sample(unsigned char* sprite_sheet,
     return frame;
 }
 
-void render_scene(Map *map, window_canvas_t quad, int w, int h, vec2_t offset)
+void render_scene(Map *map, window_canvas_t quad, float w, float h, vec2_t offset)
 {
 	for (int y = 0; y < map->height + 0 ; ++y)
 	{
@@ -154,12 +154,9 @@ void render_scene(Map *map, window_canvas_t quad, int w, int h, vec2_t offset)
 		{
 			if (map->tile_types[y][x] != TILE_EMPTY)
 			{
+				quad.position.x = w/((float)SCREEN_WIDTH/2) * x + offset.x/((float)SCREEN_WIDTH/2);
+				quad.position.y = h/((float)SCREEN_HEIGHT/2) * y + offset.y/((float)SCREEN_HEIGHT/2);
 				render_quad_screen(quad);
-				GLint player_position = glGetUniformLocation(quad.shader_program, "player_position");
-				info_log_shader(player_position);
-				glUniform2f(player_position,
-						 ((w)/((float)SCREEN_WIDTH/2)) * x + offset.x/((float)SCREEN_WIDTH/2),
-						 ((h)/((float)SCREEN_HEIGHT/2)) * y + offset.y/((float)SCREEN_HEIGHT/2));
 			}
 		}
 	}
@@ -249,7 +246,7 @@ int main(int argc, char* argv[]) {
 	int sprite_w, sprite_h, channels;
 	int tiles_sprite_w, tiles_sprite_h, tiles_sprite_channels;
 	unsigned char* sprite_sheet = stbi_load("assets/Hooded Protagonist Animation Sheet.png", &sprite_w, &sprite_h, &channels, 4);
-	unsigned char* tiles_sprite = stbi_load("assets/Dungeon_Tileset.png", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
+	unsigned char* tiles_sprite = stbi_load("assets/brick.jpg", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
 	(void)tiles_sprite;  // Suppress unused variable warning
 
 	player.touchedSpike = false;
@@ -321,22 +318,29 @@ int main(int argc, char* argv[]) {
 	window_canvas_t playerr = window_quad("shaders/renderer/pixel/fragment.glsl",
 		"shaders/renderer/pixel/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
 		{10, 50}, {85, 140});
+	playerr.scale = 1;
+	float tile_size = 20;
 	window_canvas_t tile = window_quad("shaders/renderer/pixel/fragment.glsl",
 		"shaders/renderer/pixel/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
-		{WALL_SPRITE_X, WALL_SPRITE_X * 2}, {WALL_SPRITE_X, WALL_SPRITE_X * 2});
+		{(tile_size), (tile_size) * 2}, {(tile_size), (tile_size) * 2});
+	tile.scale = 1;
 
-	tile.texturee.texture_data =  stbi_load("assets/Dungeon_Tileset.png", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
+	tile.texturee.texture_data = tiles_sprite;
 	tile.texturee.texture_width = tiles_sprite_w;
 	tile.texturee.texture_height = tiles_sprite_h;
 	
+	playerr.texturee.texture_data = player.idle_frames[0];
+	playerr.texturee.texture_width = 32;
+	playerr.texturee.texture_height = 32;
+
 	float f = 0;
 
 	vec2_t camera2d = {0, 0};
 
 	while (1) {
 		int w, h;
-		// glEnable(GL_BLEND);        
-		// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);        
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -344,27 +348,15 @@ int main(int argc, char* argv[]) {
 		SDL_GetWindowSize(window, &w, &h);
 		glViewport(0, 0, w, h);
 
-		render_scene(map, tile, WALL_SPRITE_X * 2 - WALL_SPRITE_X, WALL_SPRITE_X * 2 - WALL_SPRITE_X, camera2d);
+		tile.scale += 0.001;
+		render_scene(map, tile, (tile_size) * 2 - (tile_size), (tile_size) * 2 - (tile_size), camera2d);
 
-		// render_quad_screen(canvas_test, tiles_sprite, tiles_sprite_w, tiles_sprite_h);
-
-		// GLint mouse = glGetUniformLocation(canvas_test.shader_program, "mouse");
-		// GLint time_u = glGetUniformLocation(canvas_test.shader_program, "time");
-		// GLint resolution = glGetUniformLocation(canvas_test.shader_program, "resolution");
-		// info_log_shader(mouse);
-		// info_log_shader(resolution);
-
-		// glUniform2f(mouse, (float)mousex/((float)w/2) - 1, -(float)mousey/((float)h/2) + 1);
-		// glUniform2f(resolution, w, h);
-		// glUniform1f(time_u, time);
-
-		// render_quad_screen(playerr);
-		// GLint player_position = glGetUniformLocation(playerr.shader_program, "player_position");
-		// glUniform2f(player_position, player.x/SCREEN_WIDTH, 0);
+		playerr.position.x = player.x/SCREEN_WIDTH;
+		playerr.position.y = player.y/SCREEN_HEIGHT;
+		render_quad_screen(playerr);
 
 		f += 0.01;
 
-		SDL_GL_SwapWindow(window);
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
 		{
@@ -391,12 +383,10 @@ int main(int argc, char* argv[]) {
 						camera2d.y += 11;
 						break ;
 					case SDL_SCANCODE_D:
-						player.x += 11;
-						camera2d.x -= 11;
+						camera2d.x -= PLAYER_SPEED * deltaTime;
 						break;
 					case SDL_SCANCODE_A:					
-						camera2d.x += 11;
-						player.x -= 11;
+						camera2d.x += PLAYER_SPEED * deltaTime;
 						break;
 
 					default:
@@ -404,10 +394,6 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
-
-		SDL_SetWindowFullscreen(window, win_mode);
-
-		continue;
 
 		time += 0.01;
 		float currentTime = SDL_GetTicks();
@@ -730,12 +716,9 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		}
-
-		printf("%f\n", deltaTime);
-
+		
+		deltaTime = (SDL_GetTicks() - currentTime)/1000;
 		SDL_SetWindowFullscreen(window, win_mode);
-
-		deltaTime = (SDL_GetTicks() - currentTime)/100;
 		SDL_GL_SwapWindow(window);
 	}
 

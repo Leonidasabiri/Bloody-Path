@@ -3,12 +3,12 @@
 
 #define SCREEN_WIDTH 840
 #define SCREEN_HEIGHT 480
-#define PLAYER_SPEED 12.0f
+#define PLAYER_SPEED 22.0f
 #define GRAVITY 0.5f
 #define JUMP_STRENGTH -59.0f
 
 #define WALL_SPRITE_X 24
-#define WALL_SPRITE_Y 24
+#define WALL_SPRITE_Y 14
 
 #endif // CONFIG_H
 

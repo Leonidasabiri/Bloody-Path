@@ -64,7 +64,9 @@ typedef struct
     int     texture_dimensions;
     int     width;
     int     height;
+    float     scale;
     texture_t texturee;
+    vec2_t  position;
 }window_canvas_t;
 
 void renderMap(unsigned char* pixels, Map* map);
