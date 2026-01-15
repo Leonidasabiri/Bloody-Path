@@ -51,20 +51,12 @@ void main()
         lightColor = texture(t, uvtex) + (vec4(1./(1 - light)/3.) 
                     * mix(vec4(0.75, 0.0, 0., 1.), 
                           vec4(0.0, 0.0, 0., 1.), light) * vec4(1.4, 0., 0., 1.))/32.4;
-    if (light > 0.35)
-    {
-        lightColor = texture(t, uvtex)/(darken * 15 * light) 
-                    + vec4((light * 1.2)/3. + 0.2) 
-                    * mix(vec4(1.0, 0.0, 0., 1.), 
-                          vec4(0.0, 0.0, 0., 1.), light) * vec4(1.4, 0., 0., 1.);
-    }
     if (light > 0.45)
     {
         lightColor = vec4(0.1);
     }
 
-    if (texture(t, uvtex) == vec4(1. , 0., 0., 1.))
-        lightColor = vec4(1. , 0., 0., 1.);
-    FragColor = lightColor;
-}
+    vec4 col = texture(t, uvtex);
 
+    FragColor =  col;
+}

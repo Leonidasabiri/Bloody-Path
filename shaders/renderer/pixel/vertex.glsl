@@ -6,9 +6,11 @@ layout (location = 1) in vec2 uv;
 out vec2 uvtex;
 out vec3 p;
 
+uniform vec2 player_position;
+
 void main()
 {
    uvtex = uv;
    p = aPos;
-   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+   gl_Position = vec4(aPos.x + player_position.x, aPos.y + player_position.y, aPos.z, 1.0);
 }

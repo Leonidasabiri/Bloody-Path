@@ -47,4 +47,7 @@ typedef struct {
     unsigned char *jump_frames[4];
 } Player;
 
+void renderPlayer(unsigned char* pixels, Player* player, unsigned char*);
+Player setup_player(Uint32 frame_delay, bool facing_right, float max_health);
+
 #endif // PLAYER_H
