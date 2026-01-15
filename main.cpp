@@ -51,11 +51,11 @@ void findPlayerStart(Map* map, Player* player) {
 bool checkWallCollision(float x, float y, Map* map) {
     if (!map) return true; // Treat no map as a solid wall
 
-    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
-    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
+    float tileWidth = (float)WALL_SPRITE_X;
+    float tileHeight = (float)WALL_SPRITE_X;
 
-    int mapX = (int)(x / tileWidth);
-    int mapY = (int)(y / tileHeight);
+    int mapX = (int)(x /((float)SCREEN_WIDTH/2));
+    int mapY = (int)(y /((float)SCREEN_HEIGHT/2));
 
     if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
         return true; // Collide with boundaries
@@ -352,6 +352,8 @@ int main(int argc, char* argv[]) {
 	vec2_t camera2d = {0, 0};
 
 	while (1) {
+		
+		float currentTime = SDL_GetTicks();
 		int w, h;
 		glEnable(GL_BLEND);        
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -408,7 +410,7 @@ int main(int argc, char* argv[]) {
 						tile.scale += 0.1;					
 						playerr.scale += 0.1;
 						break;
-					case SDL_SCANCODE_X:					
+					case SDL_SCANCODE_X:
 						tile.scale -= 0.1;										
 						playerr.scale -= 0.1;
 						break;
@@ -419,12 +421,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		SDL_SetWindowFullscreen(window, win_mode);
-		SDL_GL_SwapWindow(window);
-
-		continue;
 		time += 0.01;
-		float currentTime = SDL_GetTicks();
 
 		Uint32 impact_seconds_elapsed = SDL_GetTicks() - player.startLevelTimer;
 		float impact_seconds = impact_seconds_elapsed / 1000.0f;
@@ -487,7 +484,7 @@ int main(int argc, char* argv[]) {
 					player.x = nextX;
 				}
 			}
-			player.vy += GRAVITY;
+			// player.vy += GRAVITY;
 			float nextY = player.y + player.vy  * deltaTime;
 
 			player.onGround = false; // Assume not on ground until proven otherwise
@@ -495,24 +492,26 @@ int main(int argc, char* argv[]) {
 			if (player.vy > 0) { // Moving down
 				if (checkWallCollision(player.x, nextY + player.height, map) || checkWallCollision(player.x + player.width - 1, nextY + player.height, map)) {
 					// Snap to ground
-					float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
-					player.y = (int)((nextY + player.height) / tileHeight) * tileHeight - player.height;
-					player.vy = 0;
-					player.onGround = true;
-				} else {
-					player.y = nextY;
+					float tileHeight = WALL_SPRITE_X;
+					// player.y = (int)((nextY + player.height) / tileHeight) * tileHeight - player.height;
+					// player.vy = 0;
+					// player.onGround = true;
+				} 
+				else 
+				{
+					// player.y = nextY;
 				}
 			} else if (player.vy < 0) { // Moving up
 				if (checkWallCollision(player.x, nextY, map) || checkWallCollision(player.x + player.width - 1, nextY, map)) {
-					player.vy = 0;
+					// player.vy = 0;
 				} else {
-					player.y = nextY;
+					// player.y = nextY;
 				}
 			}
 		}
 
-		float tileWidth = (float)TEXTURE_DEMENSIONS/map->width;
-		float tileHeight = (float)TEXTURE_DEMENSIONS/map->height;
+		float tileWidth = (float)WALL_SPRITE_X;
+		float tileHeight = (float)WALL_SPRITE_X;
 
 		if (checkSpikeCollision(&player, map)) {
 			if (!player.touchedSpike) {
@@ -746,6 +745,9 @@ int main(int argc, char* argv[]) {
 		}
 		
 		deltaTime = (SDL_GetTicks() - currentTime)/1000;
+		SDL_SetWindowFullscreen(window, win_mode);
+		SDL_GL_SwapWindow(window);
+
 	}
 
 	SDL_DestroyWindow(window);
