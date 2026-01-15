@@ -1,6 +1,8 @@
 #ifndef MAP_PARSER_H
 #define MAP_PARSER_H
 
+#include "../rendering/renderer.h"
+
 // Represents the different types of tiles after parsing
 typedef enum {
     TILE_EMPTY,
@@ -52,11 +54,11 @@ typedef struct {
     int checkpointCount; // Number of checkpoints
     Exit exit; // The level exit (only one per map)
     bool hasExit; // Whether the map has an exit tile
-    unsigned char    *empty_tile_texture;
-    unsigned char    *wall_texture;
-    unsigned char    *check_point_texture;
-    unsigned char    *exit_texture;
-    unsigned char    *spike_texture;
+    texture_t empty_tile_texture;
+    texture_t wall_texture;
+    texture_t check_point_texture;
+    texture_t exit_texture;
+    texture_t spike_texture;
 } Map;
 
 /**

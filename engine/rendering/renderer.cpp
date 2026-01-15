@@ -10,19 +10,6 @@ void draw_pixel(int x, int y, color_t color, unsigned char* pixels)
     pixels[(y * 300 + x) * 4 + 3] = color.a;
 }
 
-void renderMap(unsigned char* pixels, Map* map) {
-    if (!map) return;
-
-    int tileWidth =  SCREEN_WIDTH/map->width;
-    int tileHeight =  SCREEN_WIDTH/map->height;
-
-    for (int y = 0; y < map->height; ++y) {
-        for (int x = 0; x < map->width; ++x) {
-           
-        }
-    }
-}
-
 void renderPlayer(unsigned char* pixels, Player* player, unsigned char* frame) {
     if (!player) 
         return;
@@ -244,8 +231,10 @@ void render_quad_screen(window_canvas_t canvas_quad)
                             canvas_quad.texturee.texture_height, 0, 
                             GL_RGBA, GL_UNSIGNED_BYTE, canvas_quad.texturee.texture_data);
     GLint player_position = glGetUniformLocation(canvas_quad.shader_program, "player_position");
+    GLint mouse_position = glGetUniformLocation(canvas_quad.shader_program, "mouse_position");
     GLint scale = glGetUniformLocation(canvas_quad.shader_program, "scale");
     glUniform2f(player_position, canvas_quad.position.x, canvas_quad.position.y);
+    glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2) - 1, (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2) - 1);
     glUniform1f(scale, canvas_quad.scale);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(canvas_quad.vertex_array);

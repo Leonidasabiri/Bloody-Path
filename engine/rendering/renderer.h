@@ -10,7 +10,6 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
-#include "../tools/map_parser.h"
 #include "../player/player.h"
 #include "../../tinyutils.h"
 
@@ -27,7 +26,7 @@ typedef struct
 
 typedef struct
 {
-    int             texture_width, texture_height;
+    int             texture_width, texture_height, channels;
     unsigned char *texture_data;
 } texture_t;
 
@@ -64,12 +63,12 @@ typedef struct
     int     texture_dimensions;
     int     width;
     int     height;
+    int     mousex, mousey;
     float     scale;
     texture_t texturee;
     vec2_t  position;
 }window_canvas_t;
 
-void renderMap(unsigned char* pixels, Map* map);
 void draw_pixel(int x, int y, color_t color, unsigned char* pixels);
 shader_t shader(const char* path, shader_type type);
 void info_log_shader(GLuint id);

@@ -43,19 +43,6 @@ void main()
     mos.x *= resolution.x/resolution.y;
     playerpos.x *= resolution.x/resolution.y;
 
-    float light = (length((uv - playerpos))) + noise(uv - playerpos + floor(time * 3)/12 + 10.2)/2 - 0.32;
-
-    vec4 lightColor = vec4(vec3(light), 1.0);
-
-    if (light < 0.35)
-        lightColor = texture(t, uvtex) + (vec4(1./(1 - light)/3.) 
-                    * mix(vec4(0.75, 0.0, 0., 1.), 
-                          vec4(0.0, 0.0, 0., 1.), light) * vec4(1.4, 0., 0., 1.))/32.4;
-    if (light > 0.45)
-    {
-        lightColor = vec4(0.1);
-    }
-
     vec4 col = texture(t, uvtex);
 
     FragColor =  col;

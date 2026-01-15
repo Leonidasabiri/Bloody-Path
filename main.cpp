@@ -20,16 +20,16 @@ const char *game_name = "Bloody Path";
 
 void findPlayerStart(Map* map, Player* player) {
     if (!map || !player) return;
-    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
-    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
+    float tileWidth = WALL_SPRITE_X;
+    float tileHeight = WALL_SPRITE_X;
 
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
             if (map->data[y][x] == 'P') {
-                player->x = x * tileWidth;
-                player->y = y * tileHeight;
-                player->width = tileWidth / 2;
-                player->height = tileHeight;
+                player->x = x * WALL_SPRITE_X/((float)SCREEN_WIDTH/2);
+                player->y = (map->height - y) * WALL_SPRITE_X/((float)SCREEN_HEIGHT/2);
+                player->width = WALL_SPRITE_X;
+                player->height = WALL_SPRITE_X;
                 player->vy = 0;
                 player->onGround = false;
                 player->checkpointX = (float)x;
@@ -38,14 +38,14 @@ void findPlayerStart(Map* map, Player* player) {
             }
         }
     }
-    player->x = TEXTURE_DEMENSIONS/2;
-    player->y = TEXTURE_DEMENSIONS/2;
-    player->width = tileWidth/2;
-    player->height = tileHeight;
+    player->x = SCREEN_WIDTH/2;
+    player->y = SCREEN_HEIGHT/2;
+    player->width = WALL_SPRITE_X/2;
+    player->height = WALL_SPRITE_X;
     player->vy = 0;
     player->onGround = false;
-    player->checkpointX = player->x / tileWidth;
-    player->checkpointY = player->y / tileHeight;
+    player->checkpointX = player->x / WALL_SPRITE_X;
+    player->checkpointY = player->y / WALL_SPRITE_X;
 }
 
 bool checkWallCollision(float x, float y, Map* map) {
@@ -152,10 +152,24 @@ void render_scene(Map *map, window_canvas_t quad, float w, float h, vec2_t offse
 	{
 		for (int x = 0; x < map->width + 0 ; ++x)
 		{
-			if (map->tile_types[y][x] != TILE_EMPTY)
+			switch (map->tile_types[y][x])
+			{
+				case TILE_WALL:
+					// quad.texturee.texture_data   = map->wall_texture.texture_data;
+					// quad.texturee.texture_width  = map->wall_texture.texture_width;
+					// quad.texturee.texture_height = map->wall_texture.texture_height;
+					break;
+				case TILE_SPIKE:
+					// quad.texturee.texture_data   = map->spike_texture.texture_data;
+					// quad.texturee.texture_width  = map->spike_texture.texture_width;
+					// quad.texturee.texture_height = map->spike_texture.texture_height;
+				default:
+					break;
+			}
+			if (map->tile_types[y][x] != TILE_EMPTY && map->tile_types[y][x] != TILE_PLAYER_START)
 			{
 				quad.position.x = w/((float)SCREEN_WIDTH/2) * x + offset.x/((float)SCREEN_WIDTH/2);
-				quad.position.y = h/((float)SCREEN_HEIGHT/2) * y + offset.y/((float)SCREEN_HEIGHT/2);
+				quad.position.y = h/((float)SCREEN_HEIGHT/2) * (map->height - y) + offset.y/((float)SCREEN_HEIGHT/2);
 				render_quad_screen(quad);
 			}
 		}
@@ -219,46 +233,42 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	unsigned char* pixels = (unsigned char*)malloc(300 * 300 * 4);
-
 	int currentLevel = 1;
 	Map* map = NULL;
-
+	
+	int sprite_w, sprite_h, channels;
+	int tiles_sprite_w, tiles_sprite_h, tiles_sprite_channels;
 	auto loadLevel = [&](int level) {
 		char mapPath[256];
 		snprintf(mapPath, sizeof(mapPath), "maps/%d.mp", level);
 		map = loadMap(mapPath);
 		return map;
 	};
-
+	
 	if (!loadLevel(currentLevel)) {
 		printf("Failed to load initial level.\n");
-		free(pixels);
 		SDL_GL_DeleteContext(context);
 		SDL_DestroyWindow(window);
 		SDL_Quit();
 		return 1;
 	}
+	
+	map->spike_texture.texture_data = stbi_load("assets/spike.png", &map->spike_texture.texture_width, 
+																	&map->spike_texture.texture_height, 
+																	&map->spike_texture.channels, 4);
+	map->wall_texture.texture_data = stbi_load("assets/brick.jpg", &map->wall_texture.texture_width,
+																	&map->wall_texture.texture_height, 
+																	&map->wall_texture.channels, 4);
 
 	Player player;
 	findPlayerStart(map, &player);
 	// the whole sprite sheet goes here
-	int sprite_w, sprite_h, channels;
-	int tiles_sprite_w, tiles_sprite_h, tiles_sprite_channels;
 	unsigned char* sprite_sheet = stbi_load("assets/Hooded Protagonist Animation Sheet.png", &sprite_w, &sprite_h, &channels, 4);
 	unsigned char* tiles_sprite = stbi_load("assets/brick.jpg", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
 	(void)tiles_sprite;  // Suppress unused variable warning
 
 	player.touchedSpike = false;
 	player.spikeTimer = 0;
-
-	window_canvas_t canvas = window_quad("shaders/renderer/pixel/fragment.glsl","shaders/renderer/pixel/vertex.glsl",
-								pixels, 300, 300,  {0, SCREEN_WIDTH}, {0, SCREEN_HEIGHT});
-	canvas.width = SCREEN_WIDTH;
-	canvas.height = SCREEN_HEIGHT;
-	canvas = window_quad_multipass(canvas, "shaders/post_processing/bloom.glsl");
-
-	int mousex, mousey;
 
 	float time = 0;
 
@@ -312,18 +322,20 @@ int main(int argc, char* argv[]) {
 	player.startLevelTimer = SDL_GetTicks();
 
 	float deltaTime = 0;
+	float tile_size = WALL_SPRITE_X;
 
 	window_canvas_t canvas_test = window_quad("shaders/renderer/pixel/fragment.glsl",
 		"shaders/renderer/pixel/vertex.glsl", player.idle_frames[0], 32, 32, {0, SCREEN_WIDTH}, {0, SCREEN_HEIGHT});
 	window_canvas_t playerr = window_quad("shaders/renderer/pixel/fragment.glsl",
 		"shaders/renderer/pixel/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
-		{10, 50}, {85, 140});
+		{(tile_size), (tile_size) * 2}, {(tile_size), (tile_size) * 2});
 	playerr.scale = 1;
-	float tile_size = 20;
 	window_canvas_t tile = window_quad("shaders/renderer/pixel/fragment.glsl",
 		"shaders/renderer/pixel/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
 		{(tile_size), (tile_size) * 2}, {(tile_size), (tile_size) * 2});
 	tile.scale = 1;
+	tile.mousex = 0;
+	tile.mousey = 0;
 
 	tile.texturee.texture_data = tiles_sprite;
 	tile.texturee.texture_width = tiles_sprite_w;
@@ -332,6 +344,8 @@ int main(int argc, char* argv[]) {
 	playerr.texturee.texture_data = player.idle_frames[0];
 	playerr.texturee.texture_width = 32;
 	playerr.texturee.texture_height = 32;
+	playerr.mousex = 0;
+	playerr.mousey = 0;
 
 	float f = 0;
 
@@ -344,18 +358,20 @@ int main(int argc, char* argv[]) {
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		SDL_GetMouseState(&mousex, &mousey);
+		SDL_GetMouseState(&tile.mousex, &tile.mousey);
+		SDL_GetMouseState(&playerr.mousex, &playerr.mousey);
 		SDL_GetWindowSize(window, &w, &h);
 		glViewport(0, 0, w, h);
 
-		tile.scale += 0.001;
 		render_scene(map, tile, (tile_size) * 2 - (tile_size), (tile_size) * 2 - (tile_size), camera2d);
 
-		playerr.position.x = player.x/SCREEN_WIDTH;
-		playerr.position.y = player.y/SCREEN_HEIGHT;
+		playerr.position.x = player.x;
+		playerr.position.y = player.y;
+
+		playerr.texturee.texture_data = player.idle_frames[(int)f%4];
 		render_quad_screen(playerr);
 
-		f += 0.01;
+		f += 0.1;
 
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
@@ -388,6 +404,14 @@ int main(int argc, char* argv[]) {
 					case SDL_SCANCODE_A:					
 						camera2d.x += PLAYER_SPEED * deltaTime;
 						break;
+					case SDL_SCANCODE_Z:					
+						tile.scale += 0.1;					
+						playerr.scale += 0.1;
+						break;
+					case SDL_SCANCODE_X:					
+						tile.scale -= 0.1;										
+						playerr.scale -= 0.1;
+						break;
 
 					default:
 						break;
@@ -395,6 +419,10 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+		SDL_SetWindowFullscreen(window, win_mode);
+		SDL_GL_SwapWindow(window);
+
+		continue;
 		time += 0.01;
 		float currentTime = SDL_GetTicks();
 
@@ -718,8 +746,6 @@ int main(int argc, char* argv[]) {
 		}
 		
 		deltaTime = (SDL_GetTicks() - currentTime)/1000;
-		SDL_SetWindowFullscreen(window, win_mode);
-		SDL_GL_SwapWindow(window);
 	}
 
 	SDL_DestroyWindow(window);
