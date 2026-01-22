@@ -148,35 +148,21 @@ static void analyzeMap(Map* map) {
 
             if (current_char == 'P') {
                 map->tile_types[y][x] = TILE_PLAYER_START;
-                continue;
             }
             if (current_char == 'C') {
                 map->tile_types[y][x] = TILE_CHECKPOINT;
-                continue;
             }
             if (current_char == 'S') {
                 map->tile_types[y][x] = TILE_SPIKE;
-                continue;
             }
             if (current_char == '.') {
                 map->tile_types[y][x] = TILE_EMPTY;
-                continue;
             }
             if (current_char == 'W') {
                 map->tile_types[y][x] = TILE_WALL_INDESTRUCTIBLE;
-                continue;
             }
             if (current_char == 'E') {
                 map->tile_types[y][x] = TILE_EXIT;
-                continue;
-            }
-            if (current_char == 'I') {
-                map->tile_types[y][x] = TILE_SPIKE_INVERSED;
-                continue;
-            }
-            if (current_char != '#') {
-                map->tile_types[y][x] = TILE_EMPTY;
-                continue;
             }
 
             // Check cardinal neighbors
@@ -185,39 +171,20 @@ static void analyzeMap(Map* map) {
             int west = isSolid(map, x - 1, y);
             int east = isSolid(map, x + 1, y);
 
-            if (north && south && west && east) {
-                // Check diagonal neighbors for inner corners
-                int north_west = isSolid(map, x - 1, y - 1);
-                int north_east = isSolid(map, x + 1, y - 1);
-                int south_west = isSolid(map, x - 1, y + 1);
-                int south_east = isSolid(map, x + 1, y + 1);
-
-                if (!north_west) map->tile_types[y][x] = TILE_WALL_INNER_BOTTOM_RIGHT_CORNER;
-                else if (!north_east) map->tile_types[y][x] = TILE_WALL_INNER_BOTTOM_LEFT_CORNER;
-                else if (!south_west) map->tile_types[y][x] = TILE_WALL_INNER_TOP_RIGHT_CORNER;
-                else if (!south_east) map->tile_types[y][x] = TILE_WALL_INNER_TOP_LEFT_CORNER;
-                else map->tile_types[y][x] = TILE_WALL;
-            }
-            else if (north && south && west) map->tile_types[y][x] = TILE_WALL_RIGHT_EDGE;
-            else if (north && south && east) map->tile_types[y][x] = TILE_WALL_LEFT_EDGE;
-            else if (north && west && east) map->tile_types[y][x] = TILE_WALL_BOTTOM_EDGE;
-            else if (south && west && east) map->tile_types[y][x] = TILE_WALL_TOP_EDGE;
-            else if (north && west) map->tile_types[y][x] = TILE_WALL_BOTTOM_RIGHT_CORNER;
-            else if (north && east) map->tile_types[y][x] = TILE_WALL_BOTTOM_LEFT_CORNER;
-            else if (south && west) map->tile_types[y][x] = TILE_WALL_TOP_RIGHT_CORNER;
-            else if (south && east) map->tile_types[y][x] = TILE_WALL_TOP_LEFT_CORNER;
-            else {
-                // Fallback for single lines, etc.
-                if (north || south) map->tile_types[y][x] = TILE_WALL; // Vertical
-                else if (west || east) map->tile_types[y][x] = TILE_WALL; // Horizontal
-                else map->tile_types[y][x] = TILE_WALL; // Pillar
+            if (map->tile_types[y][x] == TILE_WALL_INDESTRUCTIBLE)
+            {
+                if (x <= 0 || (west && !east))
+                    map->tile_types[y][x] = TILE_WALL_LEFT_EDGE;
+                if (x <= 0 && y <= 0)
+                    map->tile_types[y][x] = TILE_WALL_TOP_LEFT_CORNER;
+                if (x <= 0 && y >= map->height)
+                    map->tile_types[y][x] = TILE_WALL_BOTTOM_LEFT_CORNER;
             }
         }
     }
 }
 
 // --- Checkpoint Collection Logic ---
-
 void collectCheckpoints(Map* map) {
     // First pass: count checkpoints
     int count = 0;
@@ -261,7 +228,6 @@ void collectCheckpoints(Map* map) {
 }
 
 // --- Checkpoint Management Functions ---
-
 bool checkCheckpointCollision(Map* map, int playerX, int playerY, float* checkpointX, float* checkpointY) {
     if (!map || !map->checkpoints || map->checkpointCount == 0) {
         return false;

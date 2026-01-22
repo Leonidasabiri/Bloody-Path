@@ -2,6 +2,7 @@
 
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 uv;
+layout (location = 2) in vec2 of;
 
 out vec2 uvtex;
 out vec3 p;
@@ -17,11 +18,9 @@ void main()
    uvtex = uv;
    p = aPos;
 
-   p.xy += player_position;
-   p.xy -= vec2(mouse_position.x, -mouse_position.y);
+   p.xy += player_position + vec2(mouse_position.x, -mouse_position.y) + 1 + of;
    p.x *= scale;
    p.y *= scale;
-   p.xy += vec2(mouse_position.x, -mouse_position.y);
 
    gl_Position = vec4(p.x, p.y, p.z, 1.0);
 }

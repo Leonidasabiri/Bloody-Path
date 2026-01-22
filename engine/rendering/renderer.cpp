@@ -161,8 +161,6 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned c
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     glGenBuffers(1, &canvas.uv_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, canvas.uv_buffer);
@@ -222,7 +220,7 @@ window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_p
     return canvas;
 }
 
-void render_quad_screen(window_canvas_t canvas_quad)
+void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count)
 {
     glUseProgram(canvas_quad.shader_program);
     glBindTexture(GL_TEXTURE_2D, canvas_quad.texture);
@@ -231,14 +229,24 @@ void render_quad_screen(window_canvas_t canvas_quad)
                             canvas_quad.texturee.texture_height, 0, 
                             GL_RGBA, GL_UNSIGNED_BYTE, canvas_quad.texturee.texture_data);
     GLint player_position = glGetUniformLocation(canvas_quad.shader_program, "player_position");
+    GLint uv_side = glGetUniformLocation(canvas_quad.shader_program, "uv_side");
     GLint mouse_position = glGetUniformLocation(canvas_quad.shader_program, "mouse_position");
     GLint scale = glGetUniformLocation(canvas_quad.shader_program, "scale");
     glUniform2f(player_position, canvas_quad.position.x, canvas_quad.position.y);
-    glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2) - 1, (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2) - 1);
+    glUniform2f(uv_side, canvas_quad.uv_side.x, canvas_quad.uv_side.y);
+    glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2), (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2));
     glUniform1f(scale, canvas_quad.scale);
-    glActiveTexture(GL_TEXTURE0);
-    glBindVertexArray(canvas_quad.vertex_array);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    // glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(canvas_quad.vertex_array);    
+	glBindBuffer(GL_ARRAY_BUFFER, canvas_quad.vertex_buffer);
+    if (!instanced)
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);    
+	else
+    {
+        GLint current_vao;
+        glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &current_vao);
+        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);
+    }
 }
 
 void render_quad_post_processing(window_canvas_t canvas_quad)

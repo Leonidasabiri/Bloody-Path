@@ -48,6 +48,7 @@ typedef struct
     int     indices[6];
     GLuint  vertex_buffer;
     GLuint  vertex_array;
+    GLuint  instance_buffer;
     GLuint  uv_buffer;
     GLuint  indecies_buffer;
     GLuint  shader_program;
@@ -67,6 +68,7 @@ typedef struct
     float     scale;
     texture_t texturee;
     vec2_t  position;
+    vec2_t  uv_side;
 }window_canvas_t;
 
 void draw_pixel(int x, int y, color_t color, unsigned char* pixels);
@@ -77,7 +79,7 @@ window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_p
 
 void render_quad(window_canvas_t quad);
 
-void render_quad_screen(window_canvas_t canvas_quad);
+void render_quad_screen(window_canvas_t canvas_quad, bool instanced = 0, int count = 0);
 void render_quad_post_processing(window_canvas_t canvas_quad);
 
 #endif

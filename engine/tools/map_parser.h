@@ -56,6 +56,15 @@ typedef struct {
     bool hasExit; // Whether the map has an exit tile
     texture_t empty_tile_texture;
     texture_t wall_texture;
+    texture_t right_wall_texture;
+    texture_t left_wall_texture;
+    texture_t bottom_wall_texture;
+    texture_t empty_texture;
+    texture_t top_wall_texture;
+    texture_t top_right_wall_texture;
+    texture_t top_left_wall_texture;
+    texture_t bottom_right_wall_texture;
+    texture_t bottom_left_wall_texture;
     texture_t check_point_texture;
     texture_t exit_texture;
     texture_t spike_texture;

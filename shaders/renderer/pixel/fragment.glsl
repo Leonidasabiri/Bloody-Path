@@ -8,7 +8,8 @@ uniform vec2 mouse;
 uniform vec2 player_position;
 uniform vec2 resolution;
 uniform float time;
-
+uniform vec2 uv;
+uniform vec2 uv_side;
 uniform sampler2D t;
 
 float rand(vec2 uv)
@@ -43,7 +44,7 @@ void main()
     mos.x *= resolution.x/resolution.y;
     playerpos.x *= resolution.x/resolution.y;
 
-    vec4 col = texture(t, uvtex);
+    vec4 col = texture(t, uvtex * uv_side);
 
     FragColor =  col;
 }
