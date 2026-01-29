@@ -2,6 +2,11 @@
 #include "../../config.h"
 #include "../../tinyutils.h"
 
+#include <stdlib.h>
+#include <time.h>
+
+#include "../gui/imgui.h"
+
 void draw_pixel(int x, int y, color_t color, unsigned char* pixels)
 {
     pixels[(y * 300 + x) * 4 + 0] = color.r;
@@ -10,11 +15,37 @@ void draw_pixel(int x, int y, color_t color, unsigned char* pixels)
     pixels[(y * 300 + x) * 4 + 3] = color.a;
 }
 
-void renderPlayer(unsigned char* pixels, Player* player, unsigned char* frame) {
-    if (!player) 
-        return;
-    vec2_t playerpos = { player->x, player->x + player->width} ;
-    vec2_t player_dimension = {player->y, player->y + player->height };
+float vec2_t::dot(vec2_t v2)
+{
+     return x * v2.x + y * v2.y;
+}
+
+vec2_t vec2_t::normalize_vector()
+{
+    float length = sqrt(dot(*this));
+
+    return { x / length, y / length};
+}
+
+void particle_t::initiate_particle(vec2_t p)
+{
+	for (int i = 0; i < instanciated_particles_number; i++)
+	{
+        offset_intsances[i] = {p.x, p.y + i * 0.01f};
+    }
+}
+
+void particle_t::update_particle(vec2_t p, float delta_time)
+{
+    float g = 0.01f;
+    for (int i = 0; i < instanciated_particles_number; i++)
+	{
+		offset_intsances[i].y += 0.002;
+        if (offset_intsances[i].y > 0.9)
+        {
+            offset_intsances[i] = {p.x, p.y};
+        }
+	}
 }
 
 shader_t shader(const char* path, shader_type type)
@@ -95,20 +126,51 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned c
     // [MOUNIR]: Opengl by default works with ndc so playing on the range [-1, 1] would always be mapped to the window borders
     window_canvas_t canvas;
 
-    canvas.vertecies[0] = width.y/(float)(SCREEN_WIDTH/2) - 1;
-    canvas.vertecies[1] = height.y/(float)(SCREEN_HEIGHT/2) - 1;
+    canvas.opacity = 1;
+ 
+    float x = (float)SCREEN_WIDTH/2 - (width.x + (width.y - width.x)/2);
+    float y = (float)SCREEN_HEIGHT/2 - (height.x + (height.y - height.x)/2);
+
+    if (width.x < SCREEN_WIDTH/2)
+    {
+        width.x += x;
+        width.y += x;
+    }
+    else
+    {
+        width.x -= x;
+        width.y -= x;
+    }
+
+    if (height.x < SCREEN_HEIGHT/2)
+    {
+        height.x += y;
+        height.y += y;
+    }
+    else
+    {
+        height.x -= y;
+        height.y -= y;
+    }
+
+
+    vec2_t  ndc_convert_width = {width.x/(float)(SCREEN_WIDTH/2) - 1, width.y/(float)(SCREEN_WIDTH/2) - 1};
+    vec2_t  ndc_convert_height = {height.x/(float)(SCREEN_HEIGHT/2) - 1, height.y/(float)(SCREEN_HEIGHT/2) - 1};
+
+    canvas.vertecies[0] = ndc_convert_width.y;
+    canvas.vertecies[1] = ndc_convert_height.y;
     canvas.vertecies[2] = 0;    // z always 0
 
-    canvas.vertecies[3] = width.y/(float)(SCREEN_WIDTH/2) - 1;
-    canvas.vertecies[4] = height.x/(float)(SCREEN_HEIGHT/2) - 1;
+    canvas.vertecies[3] = ndc_convert_width.y;
+    canvas.vertecies[4] = ndc_convert_height.x;
     canvas.vertecies[5] = 0;    // z always 0
 
-    canvas.vertecies[6] = width.x/(float)(SCREEN_WIDTH/2) - 1;
-    canvas.vertecies[7] = height.x/(float)(SCREEN_HEIGHT/2) - 1;
+    canvas.vertecies[6] = ndc_convert_width.x;
+    canvas.vertecies[7] = ndc_convert_height.x;
     canvas.vertecies[8] = 0;    // z always 0
 
-    canvas.vertecies[9]  = width.x/(float)(SCREEN_WIDTH/2) - 1;
-    canvas.vertecies[10] = height.y/(float)(SCREEN_HEIGHT/2) - 1;
+    canvas.vertecies[9]  = ndc_convert_width.x;
+    canvas.vertecies[10] = ndc_convert_height.y;
     canvas.vertecies[11] = 0;    // z always 0
 
     // 
@@ -182,7 +244,8 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned c
     info_log_shader(canvas.shader_program);
 
     // clean up
-    // glDeleteShader(canvas.fragment_shader);    
+    glDeleteShader(canvas.fragment_shader); 
+    glDeleteShader(canvas.vertex_shader);    
 
     return canvas;
 }
@@ -220,7 +283,7 @@ window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_p
     return canvas;
 }
 
-void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count)
+void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, void* data)
 {
     glUseProgram(canvas_quad.shader_program);
     glBindTexture(GL_TEXTURE_2D, canvas_quad.texture);
@@ -229,22 +292,31 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count)
                             canvas_quad.texturee.texture_height, 0, 
                             GL_RGBA, GL_UNSIGNED_BYTE, canvas_quad.texturee.texture_data);
     GLint player_position = glGetUniformLocation(canvas_quad.shader_program, "player_position");
+    GLint rotation_degree = glGetUniformLocation(canvas_quad.shader_program, "rotation_degree");
     GLint uv_side = glGetUniformLocation(canvas_quad.shader_program, "uv_side");
     GLint mouse_position = glGetUniformLocation(canvas_quad.shader_program, "mouse_position");
     GLint scale = glGetUniformLocation(canvas_quad.shader_program, "scale");
+    GLint opacity = glGetUniformLocation(canvas_quad.shader_program, "opacity");
+    GLint instanced_r = glGetUniformLocation(canvas_quad.shader_program, "instanced");
+    GLint resolution = glGetUniformLocation(canvas_quad.shader_program, "resolution");
+
     glUniform2f(player_position, canvas_quad.position.x, canvas_quad.position.y);
     glUniform2f(uv_side, canvas_quad.uv_side.x, canvas_quad.uv_side.y);
-    glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2), (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2));
+    glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2),
+                               (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2));
     glUniform1f(scale, canvas_quad.scale);
-    // glActiveTexture(GL_TEXTURE0);
+    glUniform1f(rotation_degree, 0);
+    glUniform1f(opacity, canvas_quad.opacity);
+    glUniform1f(instanced_r, instanced);
+    glUniform2f(resolution, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(canvas_quad.vertex_array);    
 	glBindBuffer(GL_ARRAY_BUFFER, canvas_quad.vertex_buffer);
     if (!instanced)
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);    
 	else
     {
-        GLint current_vao;
-        glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &current_vao);
+        glUniform1f(rotation_degree, 30);
         glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);
     }
 }

@@ -12,9 +12,15 @@
 #include <stdbool.h>
 #include "tinyutils.h"
 #include "config.h"
+#include "engine/gui/imgui.h"
+#include "engine/gui/imgui_impl_sdl2.h"
+#include "engine/gui/imgui_impl_opengl3.h"
 #include "engine/tools/map_parser.h"
 #include "engine/rendering/renderer.h"
 #include "player/player.h"
+#include <al.h>
+#include <alc.h>
+#include <time.h>
 
 const char *game_name = "Bloody Path";
 
@@ -146,6 +152,8 @@ unsigned char  *exctract_sprite_sheet_sample(unsigned char* sprite_sheet,
     return frame;
 }
 
+
+// Batch the whole scene/level geometry in this function
 // window_canvas_t setup_scene(Map *map)
 // {
 // 	window_canvas_t scene;
@@ -233,12 +241,24 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Set OpenGL attributes BEFORE creating the window
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+	{
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+	}
+
+	ALCdevice *device = alcOpenDevice(0);
+	const ALCchar* device_name = alcGetString(device, ALC_DEFAULT_DEVICE_SPECIFIER);
+
+	if (device_name)
+	{
+		ALCcontext *context = alcCreateContext(device, 0);
+	}
+
+	printf("%s\n", device_name);
 
 	// Create window with OpenGL flag
 	windowmode_t win_mode = window_normal;
@@ -248,6 +268,7 @@ int main(int argc, char* argv[]) {
 											SCREEN_WIDTH,
 											SCREEN_HEIGHT,
 											SDL_WINDOW_OPENGL | win_mode);
+
 
 	if (!window) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -305,57 +326,69 @@ int main(int argc, char* argv[]) {
 																	&map->spike_texture.channels, 4);
 
 
+    ImGui::CreateContext();
+	ImGui_ImplSDL2_InitForOpenGL(window, context);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+	ImGui::StyleColorsDark();
+
 	Player player;
 	findPlayerStart(map, &player);
 	// the whole sprite sheet goes here
 	unsigned char* sprite_sheet = stbi_load("assets/Hooded Protagonist Animation Sheet.png", &sprite_w, &sprite_h, &channels, 4);
 	unsigned char* tiles_sprite = stbi_load("assets/Dungeon_Tileset.png", &tiles_sprite_w, &tiles_sprite_h, &tiles_sprite_channels, 4);
 
-	map->wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 1, 16 * 2}, {16 * 4, 16 * 5}, tiles_sprite_w);
-	map->wall_texture.texture_width = 16;
-	map->wall_texture.texture_height = 16;
 
-	map->left_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 5, 16 * 6}, {16 * 0, 16 * 1}, tiles_sprite_w);
-	map->left_wall_texture.texture_width = 16;
-	map->left_wall_texture.texture_height = 16;
+	{
+		map->wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 1, 16 * 2}, {16 * 4, 16 * 5}, tiles_sprite_w);
+		map->wall_texture.texture_width = 16;
+		map->wall_texture.texture_height = 16;
 
-	map->right_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 0, 16 * 1}, {16 * 0, 16 * 1}, tiles_sprite_w);
-	map->right_wall_texture.texture_width = 16;
-	map->right_wall_texture.texture_height = 16;
+		map->left_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 5, 16 * 6}, {16 * 0, 16 * 1}, tiles_sprite_w);
+		map->left_wall_texture.texture_width = 16;
+		map->left_wall_texture.texture_height = 16;
 
-	map->empty_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 1, 16 * 2}, {16 * 1, 16 * 2}, tiles_sprite_w);
-	map->empty_texture.texture_width = 16;
-	map->empty_texture.texture_height = 16;
-	
-	map->top_left_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 0, 16 * 1}, {16 * 5, 16 * 6}, tiles_sprite_w);
-	map->top_left_wall_texture.texture_width = 16;
-	map->top_left_wall_texture.texture_height = 16;
+		map->right_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 0, 16 * 1}, {16 * 0, 16 * 1}, tiles_sprite_w);
+		map->right_wall_texture.texture_width = 16;
+		map->right_wall_texture.texture_height = 16;
 
-	map->bottom_left_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 0, 16 * 1}, {16 * 4, 16 * 5}, tiles_sprite_w);
-	map->bottom_left_wall_texture.texture_width = 16;
-	map->bottom_left_wall_texture.texture_height = 16;
+		map->empty_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 1, 16 * 2}, {16 * 1, 16 * 2}, tiles_sprite_w);
+		map->empty_texture.texture_width = 16;
+		map->empty_texture.texture_height = 16;
+		
+		map->top_left_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 0, 16 * 1}, {16 * 5, 16 * 6}, tiles_sprite_w);
+		map->top_left_wall_texture.texture_width = 16;
+		map->top_left_wall_texture.texture_height = 16;
 
+		map->bottom_left_wall_texture.texture_data = exctract_sprite_sheet_sample(tiles_sprite, {16 * 0, 16 * 1}, {16 * 4, 16 * 5}, tiles_sprite_w);
+		map->bottom_left_wall_texture.texture_width = 16;
+		map->bottom_left_wall_texture.texture_height = 16;
+	}
 	player.touchedSpike = false;
 	player.spikeTimer = 0;
 
+	float s = time(NULL);
 	float time = 0;
 
 	const Uint8* keystates = SDL_GetKeyboardState(NULL);
-	// Initialize animation state
-	player.currentAnim = ANIM_IDLE;
-	player.currentFrame = 0;
-	player.lastFrameTime = SDL_GetTicks();
-	player.frameDelay = 200; // Changed from 150ms to 200ms for slower animation
-	player.facingRight = true;
-	player.isDying = false;
-	player.isWaitingToRespawn = false;
-	player.isRespawning = false;
-	player.deathAnimStartTime = 0;
-	player.deathStartX = 0;
-	player.deathStartY = 0;
-	player.max_health = 30;
-	player.health = player.max_health;
-	player.travelStartTime = 0;
+
+	{
+		// Initialize animation state
+		player.currentAnim = ANIM_IDLE;
+		player.currentFrame = 0;
+		player.lastFrameTime = SDL_GetTicks();
+		player.frameDelay = 200; // Changed from 150ms to 200ms for slower animation
+		player.facingRight = true;
+		player.isDying = false;
+		player.isWaitingToRespawn = false;
+		player.isRespawning = false;
+		player.deathAnimStartTime = 0;
+		player.deathStartX = 0;
+		player.deathStartY = 0;
+		player.max_health = 30;
+		player.health = player.max_health;
+		player.travelStartTime = 0;
+	}
 
 	{
 		player.idle_frames[0] = exctract_sprite_sheet_sample(sprite_sheet,  {32 * 0, 32 * 1}, {32 * 0, 32 * 1}, sprite_w),
@@ -401,47 +434,79 @@ int main(int argc, char* argv[]) {
 	window_canvas_t tile = window_quad("shaders/renderer/pixel/fragment.glsl",
 		"shaders/renderer/pixel/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
 		{(tile_size), (tile_size) * 2}, {(tile_size), (tile_size) * 2});
-	tile.scale = 1;
-	tile.mousex = 0;
-	tile.mousey = 0;
-	tile.texturee.texture_data = map->wall_texture.texture_data;
-	tile.texturee.texture_width = 16;
-	tile.texturee.texture_height = 16;	
-	tile.uv_side = {1, 1};
-
+	{
+		tile.scale = 1;
+		tile.mousex = 0;
+		tile.mousey = 0;
+		tile.texturee.texture_data = map->wall_texture.texture_data;
+		tile.texturee.texture_width = 16;
+		tile.texturee.texture_height = 16;	
+		tile.uv_side = {1, 1};
+		tile.opacity = 1.0;
+	}
 		
 	texture_t blood_tex;
 	int ind = 0;
 	const int max_splash = 500;
 	vec2_t bloods[max_splash];
 
-	blood_tex.texture_data = stbi_load("assets/blood-splatter.png", 
+	blood_tex.texture_data = stbi_load("assets/blood.png", 
 										&blood_tex.texture_width,
 										&blood_tex.texture_height, 
 										&blood_tex.channels,
 										 4);
 
-	window_canvas_t blood = window_quad("shaders/renderer/pixel/fragment.glsl",
-			"shaders/renderer/pixel/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
-			{100, 100 * 2}, {200, 150 * 2});
+	window_canvas_t blood = window_quad("shaders/renderer/particle_system/fragment.glsl",
+			"shaders/renderer/particle_system/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
+			{(tile_size), (tile_size) * 2}, {(tile_size), (tile_size) * 2});
 
-	blood.texturee.texture_data = blood_tex.texture_data;
-	blood.texturee.texture_width = blood_tex.texture_width;
-	blood.texturee.texture_height = blood_tex.texture_height;
-	blood.scale = 1;
-	blood.mousex = -player.x * (SCREEN_WIDTH/2);
-	blood.mousey = player.y * (SCREEN_HEIGHT/2);
-	blood.uv_side = {1, -1};
-	blood.position = {0.0, 0.0};
-	glGenBuffers(1, &blood.instance_buffer);
+	{
+		blood.texturee.texture_data = blood_tex.texture_data;
+		blood.texturee.texture_width = blood_tex.texture_width;
+		blood.texturee.texture_height = blood_tex.texture_height;
+		blood.scale = 4;
+		blood.mousex = -player.x * (SCREEN_WIDTH/2);
+		blood.mousey = player.y * (SCREEN_HEIGHT/2);
+		blood.uv_side = {1, -1};
+		blood.position = {0.0, 0.0};
+		blood.opacity = 0.2;
+		glGenBuffers(1, &blood.instance_buffer);
+	}
 
-	playerr.texturee.texture_data = player.idle_frames[0];
-	playerr.texturee.texture_width = 32;
-	playerr.texturee.texture_height = 32;
-	playerr.mousex = 0;
-	playerr.mousey = 0;
-	playerr.uv_side = {1, 1};
-	playerr.scale = 1;
+	{
+		playerr.texturee.texture_data = player.idle_frames[0];
+		playerr.texturee.texture_width = 32;
+		playerr.texturee.texture_height = 32;
+		playerr.mousex = 0;
+		playerr.mousey = 0;
+		playerr.uv_side = {1, 1};
+		playerr.scale = 1;
+		playerr.position.x = player.x;
+		playerr.position.y = player.y;
+
+	}
+
+	particle_t 			particle;
+	
+	particle.quad = window_quad("shaders/renderer/particle_system/fragment.glsl",
+		"shaders/renderer/particle_system/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
+		{100, 200}, {200, 300});
+		
+	particle.instanciated_particles_number = 100;
+	particle.quad.texturee.texture_data = blood_tex.texture_data;
+	particle.quad.texturee.texture_width = blood_tex.texture_width;
+	particle.quad.texturee.texture_height = blood_tex.texture_height;
+	particle.quad.scale = 0.2;
+	particle.quad.uv_side = {1, -1};
+	particle.quad.opacity = 0.6;
+	particle.quad.position = {0.0f, 0.0f};
+
+	particle.initiate_particle({player.x, player.y});
+
+	glGenBuffers(1, &particle.quad.instance_buffer);
+
+	particle.force = 1.0f;
+	particle.size = 1.0f;
 
 	float f = 0;
 
@@ -453,20 +518,26 @@ int main(int argc, char* argv[]) {
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 	while (1) {		
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplSDL2_NewFrame();		
+        ImGui::NewFrame();
+
+		ImGui::Begin("Hello, world!");
+		ImGui::Text("Particles");
+		// ImGui::SliderFloat("speed", &particle.emission_speed, 0.0, 1);
+		// // ImGui::SliderInt("numbers", &particle.instanciated_particles_number, 1, 50);
+		ImGui::SliderFloat("size", &particle.quad.scale, -10, 10);
+		// ImGui::SliderFloat("position x", &particle.quad.position.x, 0.0f, 0.5f);
+		// ImGui::SliderFloat("position y", &particle.quad.position.y, 0.0f, 0.5f);
+		ImGui::End();
+		ImGui::Render();
+
 		float currentTime = SDL_GetTicks();
 		int w, h;
+
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-		tile.mousex = -player.x * (SCREEN_WIDTH/2);
-		tile.mousey = player.y * (SCREEN_HEIGHT/2);
-
-		playerr.mousex = -player.x * (SCREEN_WIDTH/2);
-		playerr.mousey = player.y * (SCREEN_HEIGHT/2);
-
-		blood.mousex = -player.x * (SCREEN_WIDTH/2);
-		blood.mousey = player.y * (SCREEN_HEIGHT/2);
 
 		glStencilFunc(GL_ALWAYS, 1, 0XFF);
 
@@ -488,10 +559,10 @@ int main(int argc, char* argv[]) {
 		if (player.currentAnim == ANIM_JUMP)
 			playerr.texturee.texture_data = player.jump_frames[player.currentFrame];
 
-
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
-		{
+		{			
+            ImGui_ImplSDL2_ProcessEvent(&ev);
 			if (ev.type == SDL_QUIT)
 				return 0;
 			if (ev.type == SDL_KEYDOWN)
@@ -514,7 +585,7 @@ int main(int argc, char* argv[]) {
 					case SDL_SCANCODE_S:
 						break ;
 					case SDL_SCANCODE_D:
-						// camera2d.x -= PLAYER_SPEED * deltaTime;
+						// camera2d.x -= PLAYER_SPEED * deltaTime;				
 						break;
 					case SDL_SCANCODE_A:					
 						// camera2d.x += PLAYER_SPEED * deltaTime;
@@ -525,19 +596,16 @@ int main(int argc, char* argv[]) {
 						blood.scale += 0.1;			
 						break;
 					case SDL_SCANCODE_T:
-						bloods[ind++] = {player.x - 0.2f, player.y - 1.0f};
+						bloods[ind++] = {player.x, player.y};
 						glBindBuffer(GL_ARRAY_BUFFER, blood.instance_buffer);
 						glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * ind, &bloods[0], GL_STATIC_DRAW);
 						glEnableVertexAttribArray(2);
 						glBindBuffer(GL_ARRAY_BUFFER, blood.instance_buffer);
 						glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
 						glVertexAttribDivisor(2, 1);
-
-
 						break;
 					case SDL_SCANCODE_X:
 						tile.scale -= 0.1;										
-						blood.scale -= 0.1;											
 						playerr.scale -= 0.1;
 						break;
 
@@ -547,42 +615,22 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		glStencilMask(0x00);		
+		glStencilMask(0x00);
         glStencilFunc(GL_ALWAYS, 0, 0x00);
 		render_quad_screen(playerr);
 
+		particle.update_particle(playerr.position, deltaTime);
+		render_quad_screen(particle.quad, true, particle.instanciated_particles_number);
+
+		glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * particle.instanciated_particles_number, &particle.offset_intsances[0], GL_STATIC_DRAW);
+		glEnableVertexAttribArray(2);
+		glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
+		glVertexAttribDivisor(2, 1);
+
         glStencilMask(0xFF);
         glStencilFunc(GL_ALWAYS, 0, 0xFF);
-		f += 0.1;
-
-		time += 0.01;
-
-		// Uint32 impact_seconds_elapsed = SDL_GetTicks() - player.startLevelTimer;
-		// float impact_seconds = impact_seconds_elapsed / 1000.0f;
-
-		// if (impact_seconds >= 10)
-		{
-		// 	if (loadLevel(currentLevel)) {
-		// 		findPlayerStart(map, &player); // Reset player position for new level
-		// 		// Reset animation state for new level
-		// 		player.currentAnim = ANIM_IDLE;
-		// 		player.currentFrame = 0;
-		// 		player.lastFrameTime = SDL_GetTicks();
-		// 		player.facingRight = true;
-		// 		player.isDying = false;
-		// 		player.isWaitingToRespawn = false;
-		// 		player.isRespawning = false;
-		// 		player.deathAnimStartTime = 0;
-		// 		player.deathStartX = 0;
-		// 		player.deathStartY = 0;
-		// 		player.travelStartTime = 0;
-		// 		// Reset spike timer when entering new level
-		// 		player.touchedSpike = false;
-		// 		player.spikeTimer = 0;
-		// 		player.health = player.max_health;
-		// 		player.startLevelTimer = SDL_GetTicks();
-		// 	}         
-		}
 
 		//
 		{
@@ -639,167 +687,6 @@ int main(int argc, char* argv[]) {
 		float tileWidth = (float)WALL_SPRITE_X;
 		float tileHeight = (float)WALL_SPRITE_X;
 
-		if (checkSpikeCollision(&player, map)) {
-			if (!player.touchedSpike) {
-				// First time touching spike - start the timer
-				player.touchedSpike = true;
-				player.spikeTimer = SDL_GetTicks();
-			}
-		}
-
-		// Uint32 elapsedTime = SDL_GetTicks() - player.spikeTimer;
-		// Check if 10 seconds have passed since touching spike
-		if (player.touchedSpike && !player.isDying && !player.isWaitingToRespawn && !player.isRespawning) {
-			Uint32 elapsedTime = SDL_GetTicks() - player.spikeTimer;
-			float seconds = elapsedTime / 1000.0f;
-
-			if (seconds >= 0.0f) {
-				// 10 seconds have passed - start death animation
-				player.isDying = true;
-				player.isWaitingToRespawn = true;
-				player.currentAnim = ANIM_DIE;
-				player.currentFrame = 0;
-				player.lastFrameTime = SDL_GetTicks();
-				player.deathAnimStartTime = SDL_GetTicks();
-				// Store starting position (death stays at this location)
-				player.deathStartX = player.x;
-				player.deathStartY = player.y;
-				player.health -= 4.5;
-			}
-		}
-		// Handle death animation, travel, and respawn sequence
-		if (player.isWaitingToRespawn && !player.isRespawning) {
-			Uint32 deathAnimElapsed = SDL_GetTicks() - player.deathAnimStartTime;
-			// Death animation has 8 frames at 150ms each = 1200ms total
-			const Uint32 DEATH_ANIM_DURATION = 8 * 150; // 8 frames * 150ms per frame
-			
-			// Stay at death position during death animation
-			player.x = player.deathStartX;
-			player.y = player.deathStartY;
-			
-			if (deathAnimElapsed >= DEATH_ANIM_DURATION) {
-				// Death animation complete - start traveling last frame to checkpoint
-				player.isWaitingToRespawn = false;
-				player.travelStartTime = SDL_GetTicks();
-				// Keep last frame of death animation (frame 7)
-				player.currentFrame = 7;
-			}
-		}
-		// Travel the last death frame to respawn location
-		if (!player.isWaitingToRespawn && !player.isRespawning && player.isDying && player.travelStartTime > 0) {
-			Uint32 travelElapsed = SDL_GetTicks() - player.travelStartTime;
-			const Uint32 TRAVEL_DURATION = 800; // 800ms to travel to checkpoint
-			
-			// Smoothly interpolate position to respawn point
-			float progress = (float)travelElapsed / (float)TRAVEL_DURATION;
-			if (progress > 1.0f) progress = 1.0f;
-			
-			// Calculate target respawn position
-			// Position player so feet are at the bottom of the checkpoint tile
-			float targetX = player.checkpointX * tileWidth;
-			float targetY = (player.checkpointY + 1) * tileHeight - player.height;
-			
-			// Interpolate position (ease-in-out for smoother motion)
-			float easedProgress = progress * progress * (3.0f - 2.0f * progress); // Smoothstep
-			player.x = player.deathStartX + (targetX - player.deathStartX) * easedProgress;
-			player.y = player.deathStartY + (targetY - player.deathStartY) * easedProgress;
-			
-			// Keep showing last frame of death animation during travel
-			player.currentFrame = 7;
-			
-			if (travelElapsed >= TRAVEL_DURATION) {
-				// Travel complete - start respawn animation (play death backwards)
-				player.isRespawning = true;
-				player.currentFrame = 7; // Start from last frame
-				player.lastFrameTime = SDL_GetTicks();
-				player.travelStartTime = 0;
-				
-				// Ensure we're exactly at checkpoint position
-				player.x = targetX;
-				player.y = targetY;
-			}
-		}
-
-		// Play respawn animation (death animation backwards)
-		if (player.isRespawning) {
-			Uint32 currentTime = SDL_GetTicks();
-			Uint32 elapsedTime = currentTime - player.lastFrameTime;
-			
-			if (elapsedTime >= player.frameDelay) {
-				player.lastFrameTime = currentTime;
-				
-				// Go backwards through death animation frames
-				player.currentFrame--;
-				
-				if (player.currentFrame < 0) {
-					// Respawn animation complete - return to normal gameplay
-					
-					// Reset all death and respawn flags
-					player.touchedSpike = false;
-					player.spikeTimer = 0;
-					player.isDying = false;
-					player.isRespawning = false;
-					player.deathAnimStartTime = 0;
-					player.deathStartX = 0;
-					player.deathStartY = 0;
-					
-					// Return to idle animation
-					player.currentAnim = ANIM_IDLE;
-					player.currentFrame = 0;
-					player.lastFrameTime = SDL_GetTicks();
-					player.vy = 0;
-					player.onGround = false;
-				}
-			}
-		}
-
-		// Check for checkpoint collision and save respawn point
-		float playerCenterX = player.x + player.width / 2;
-		float playerCenterY = player.y + player.height / 2;
-		int gridX = (int)(playerCenterX / tileWidth);
-		int gridY = (int)(playerCenterY / tileHeight);
-		if (::checkCheckpointCollision(map, gridX, gridY, &player.checkpointX, &player.checkpointY)) {
-			player.health = player.max_health;
-			player.startLevelTimer = SDL_GetTicks();
-		}
-			if (checkExitCollisionLocal(&player, map)) {
-				currentLevel++;
-				if (loadLevel(currentLevel)) {
-					findPlayerStart(map, &player); // Reset player position for new level
-					// Reset animation state for new level
-					player.currentAnim = ANIM_IDLE;
-					player.currentFrame = 0;
-					player.lastFrameTime = SDL_GetTicks();
-					player.facingRight = true;
-					player.isDying = false;
-					player.isWaitingToRespawn = false;
-					player.isRespawning = false;
-					player.deathAnimStartTime = 0;
-					player.deathStartX = 0;
-					player.deathStartY = 0;
-					player.travelStartTime = 0;
-					// Reset spike timer when entering new level
-					player.touchedSpike = false;
-					player.spikeTimer = 0;
-					player.health = player.max_health;
-					player.startLevelTimer = SDL_GetTicks();
-				}         
-			}
-			else {
-			// Debug: Check if player is near the exit
-				float playerCenterX_exit = player.x + player.width / 2;
-				float playerBottomY = player.y + player.height;
-				int exitGridX = (int)(playerCenterX_exit / tileWidth);
-				int exitGridY = (int)(playerBottomY / tileHeight);
-				
-				// Only print when player is near the exit area
-				if (exitGridX >= 18 && exitGridY >= 10) {
-					printf("Player pos: (%.1f, %.1f) size: (%.1f, %.1f) Grid: (%d, %d) Exit at: (%d, %d)\n", 
-						player.x, player.y, player.width, player.height, 
-						exitGridX, exitGridY, map->exit.x, map->exit.y);
-			}
-		}
-
 		// --- Update Animation State ---
 		if (!player.isDying && !player.isRespawning) {
 			// Determine which animation to play based on player state
@@ -853,25 +740,11 @@ int main(int argc, char* argv[]) {
 				player.currentFrame = (player.currentFrame + framesToAdvance) % frameCount;
 			}
 		}
-		if (player.isDying && !player.isRespawning && player.isWaitingToRespawn) {
-			Uint32 currentTime = SDL_GetTicks();
-			Uint32 elapsedTime = currentTime - player.lastFrameTime;
-			
-			if (elapsedTime >= player.frameDelay && player.currentFrame < 7) {
-				int framesToAdvance = elapsedTime / player.frameDelay;
-				player.lastFrameTime += framesToAdvance * player.frameDelay;
-				
-				// Advance death animation, stop at last frame
-				player.currentFrame += framesToAdvance;
-				if (player.currentFrame > 7) { // Ensure we don't go past frame 7
-					player.currentFrame = 7;
-				}
-			}
 		}
-		}
-		
+
 		deltaTime = (SDL_GetTicks() - currentTime)/1000;
-		SDL_SetWindowFullscreen(window, win_mode);
+		SDL_SetWindowFullscreen(window, win_mode);		
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		SDL_GL_SwapWindow(window);
 
 	}

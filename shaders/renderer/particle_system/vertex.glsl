@@ -19,10 +19,11 @@ void main()
    uvtex = uv;
    p = aPos;
 
+   p.x *= vertex_scale + gl_InstanceID/100;
+   p.y *= vertex_scale + gl_InstanceID/100;
+
    p.xy += player_position + offset;
 
-   p.x *= vertex_scale;
-   p.y *= vertex_scale;
 
    gl_Position = vec4(p.x, p.y, p.z, 1.0);
 }
