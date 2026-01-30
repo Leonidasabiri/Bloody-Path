@@ -5,7 +5,7 @@
 #define SCREEN_HEIGHT 480
 #define PLAYER_SPEED 322.0f
 #define GRAVITY 22.0f
-#define JUMP_STRENGTH 69.0f
+#define JUMP_STRENGTH 89.0f
 
 #define WALL_SPRITE_X 30
 #define WALL_SPRITE_Y 20

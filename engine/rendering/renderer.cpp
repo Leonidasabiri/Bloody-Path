@@ -27,11 +27,33 @@ vec2_t vec2_t::normalize_vector()
     return { x / length, y / length};
 }
 
+
+vec2_t vec2_t::operator+(vec2_t &v1)
+{
+    vec2_t res = {this->x + v1.x, this->y + v1.y};
+    return res;
+}
+
+vec2_t vec2_t::operator+=(vec2_t &v1)
+{
+    return {this->x + v1.x, this->y + v1.y};
+}
+
+vec2_t vec2_t::operator * (float scalar)
+{
+    return {this->x * scalar, this->y * scalar};
+}
+
+vec2_t vec2_t::operator-(vec2_t &v1)
+{
+    return {this->x - v1.x, this->y - v1.y};
+}
+
 void particle_t::initiate_particle(vec2_t p)
 {
 	for (int i = 0; i < instanciated_particles_number; i++)
 	{
-        offset_intsances[i] = {p.x, p.y + i * 0.01f};
+        offset_intsances[i] = {0.0f, i * 0.01f};
     }
 }
 
@@ -40,7 +62,7 @@ void particle_t::update_particle(vec2_t p, float delta_time)
     float g = 0.01f;
     for (int i = 0; i < instanciated_particles_number; i++)
 	{
-		offset_intsances[i].y += 0.002;
+		offset_intsances[i].y += 0.002 * emission_speed;
         if (offset_intsances[i].y > 0.9)
         {
             offset_intsances[i] = {p.x, p.y};
@@ -295,7 +317,8 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, 
     GLint rotation_degree = glGetUniformLocation(canvas_quad.shader_program, "rotation_degree");
     GLint uv_side = glGetUniformLocation(canvas_quad.shader_program, "uv_side");
     GLint mouse_position = glGetUniformLocation(canvas_quad.shader_program, "mouse_position");
-    GLint scale = glGetUniformLocation(canvas_quad.shader_program, "scale");
+    GLint global_scale = glGetUniformLocation(canvas_quad.shader_program, "global_scale");
+    GLint relative_scale = glGetUniformLocation(canvas_quad.shader_program, "relative_scale");
     GLint opacity = glGetUniformLocation(canvas_quad.shader_program, "opacity");
     GLint instanced_r = glGetUniformLocation(canvas_quad.shader_program, "instanced");
     GLint resolution = glGetUniformLocation(canvas_quad.shader_program, "resolution");
@@ -304,7 +327,8 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, 
     glUniform2f(uv_side, canvas_quad.uv_side.x, canvas_quad.uv_side.y);
     glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2),
                                (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2));
-    glUniform1f(scale, canvas_quad.scale);
+    glUniform1f(global_scale, canvas_quad.global_scale);
+    glUniform1f(relative_scale, canvas_quad.scale);
     glUniform1f(rotation_degree, 0);
     glUniform1f(opacity, canvas_quad.opacity);
     glUniform1f(instanced_r, instanced);
@@ -316,8 +340,8 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);    
 	else
     {
-        glUniform1f(rotation_degree, 30);
-        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);
+        // glUniform1f(rotation_degree, 30);
+        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);    
     }
 }
 

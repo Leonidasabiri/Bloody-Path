@@ -63,13 +63,14 @@ struct window_canvas_t
     char    *buffer;
     int     texture_dimensions;
     int     width;
-    int     height;
-    int     mousex, mousey;
+    int       height;
+    int       mousex, mousey;
     float     scale;
+    float     global_scale;
     float     opacity;
     texture_t texturee;
-    vec2_t  position;
-    vec2_t  uv_side;
+    vec2_t    position;
+    vec2_t    uv_side;
 };
 
 struct particle_t

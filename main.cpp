@@ -32,7 +32,7 @@ void findPlayerStart(Map* map, Player* player) {
     for (int y = 0; y < map->height; ++y) {
         for (int x = 0; x < map->width; ++x) {
             if (map->data[y][x] == 'P') {
-                player->x = x * WALL_SPRITE_X/((float)SCREEN_WIDTH/2);
+                player->x = x * (WALL_SPRITE_X/((float)SCREEN_WIDTH/2));
                 player->y = (map->height - y) * WALL_SPRITE_X/((float)SCREEN_HEIGHT/2);
                 player->width = (WALL_SPRITE_X-10)/((float)SCREEN_WIDTH/2);
                 player->height = (WALL_SPRITE_X)/((float)SCREEN_HEIGHT/2);
@@ -199,11 +199,6 @@ void render_scene(Map *map, window_canvas_t quad, float w, float h, vec2_t offse
 					quad.texturee.texture_data   = map->spike_texture.texture_data;
 					quad.texturee.texture_width  = map->spike_texture.texture_width;
 					quad.texturee.texture_height = map->spike_texture.texture_height;
-				case TILE_EMPTY:
-					quad.texturee.texture_data   = map->empty_texture.texture_data;
-					quad.texturee.texture_width  = map->empty_texture.texture_width;
-					quad.texturee.texture_height = map->empty_texture.texture_height;
-					break;
 				case TILE_WALL_TOP_LEFT_CORNER:
 					quad.texturee.texture_data   = map->top_left_wall_texture.texture_data;
 					quad.texturee.texture_width  = map->top_left_wall_texture.texture_width;
@@ -218,13 +213,16 @@ void render_scene(Map *map, window_canvas_t quad, float w, float h, vec2_t offse
 					break;
 			}
 			{
-				quad.position.x = w/((float)SCREEN_WIDTH/2) * x + offset.x/((float)SCREEN_WIDTH/2);
-				quad.position.y = h/((float)SCREEN_HEIGHT/2) * (map->height - y) + offset.y/((float)SCREEN_HEIGHT/2);
-				if (map->tile_types[y][x] != TILE_EMPTY)
-					glStencilMask(0xFF);
-				else
-					glStencilMask(0x0);
-				render_quad_screen(quad);
+				quad.position.x = (w/((float)SCREEN_WIDTH/2)) * x + offset.x;
+				quad.position.y = (h/((float)SCREEN_HEIGHT/2)) * (map->height - y) + offset.y;
+				if (map->tile_types[y][x] != TILE_EMPTY && map->tile_types[y][x] != TILE_PLAYER_START)
+				{
+					if (map->tile_types[y][x] != TILE_EMPTY)
+						glStencilMask(0xFF);
+					else
+						glStencilMask(0x0);
+					render_quad_screen(quad);
+				}
 			}
 		}
 	}
@@ -436,6 +434,7 @@ int main(int argc, char* argv[]) {
 		{(tile_size), (tile_size) * 2}, {(tile_size), (tile_size) * 2});
 	{
 		tile.scale = 1;
+		tile.global_scale = 1;
 		tile.mousex = 0;
 		tile.mousey = 0;
 		tile.texturee.texture_data = map->wall_texture.texture_data;
@@ -464,7 +463,8 @@ int main(int argc, char* argv[]) {
 		blood.texturee.texture_data = blood_tex.texture_data;
 		blood.texturee.texture_width = blood_tex.texture_width;
 		blood.texturee.texture_height = blood_tex.texture_height;
-		blood.scale = 4;
+		blood.scale = 5.0f;
+		blood.global_scale = 1.0f;
 		blood.mousex = -player.x * (SCREEN_WIDTH/2);
 		blood.mousey = player.y * (SCREEN_HEIGHT/2);
 		blood.uv_side = {1, -1};
@@ -481,6 +481,7 @@ int main(int argc, char* argv[]) {
 		playerr.mousey = 0;
 		playerr.uv_side = {1, 1};
 		playerr.scale = 1;
+		playerr.global_scale = 1;
 		playerr.position.x = player.x;
 		playerr.position.y = player.y;
 
@@ -496,7 +497,9 @@ int main(int argc, char* argv[]) {
 	particle.quad.texturee.texture_data = blood_tex.texture_data;
 	particle.quad.texturee.texture_width = blood_tex.texture_width;
 	particle.quad.texturee.texture_height = blood_tex.texture_height;
+	particle.quad.global_scale= 1.0;
 	particle.quad.scale = 0.2;
+	particle.emission_speed = 1.0;
 	particle.quad.uv_side = {1, -1};
 	particle.quad.opacity = 0.6;
 	particle.quad.position = {0.0f, 0.0f};
@@ -504,29 +507,67 @@ int main(int argc, char* argv[]) {
 	particle.initiate_particle({player.x, player.y});
 
 	glGenBuffers(1, &particle.quad.instance_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * particle.instanciated_particles_number, &particle.offset_intsances[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
+	glVertexAttribDivisor(2, 1);		
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 
 	particle.force = 1.0f;
 	particle.size = 1.0f;
 
 	float f = 0;
 
-	vec2_t camera2d = {0, 0};
+	vec2_t camera2d = {0.0f, 0.0f};
 
 	glEnable(GL_STENCIL_TEST);
 	glEnable(GL_BLEND);
 	glStencilFunc(GL_EQUAL, 0, 0X00);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
-	while (1) {		
+	float		pressed = 0;	
+	
+	vec2_t tmpblood[max_splash];
+
+	while (1) 
+	{
+		camera2d = {-player.x + (float)rand()/(float)RAND_MAX * pressed/200, 
+					-player.y + (float)rand()/(float)RAND_MAX * pressed/200};
+		for (int i = 0 ; i < ind; i++)
+		{			
+			tmpblood[i] = bloods[i];
+			tmpblood[i].x += camera2d.x;
+			tmpblood[i].y += camera2d.y;
+			glBindBuffer(GL_ARRAY_BUFFER, blood.instance_buffer);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * ind, &tmpblood[0], GL_STATIC_DRAW);
+			glEnableVertexAttribArray(2);
+			glBindBuffer(GL_ARRAY_BUFFER, blood.instance_buffer);
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
+			glVertexAttribDivisor(2, 1);
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		playerr.position.x = player.x + camera2d.x;//
+		playerr.position.y = player.y + camera2d.y;//
+
+
+		if (pressed > 0)
+			pressed-=0.2f;
+		else
+			pressed = 0.0f;
+
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplSDL2_NewFrame();		
         ImGui::NewFrame();
 
-		ImGui::Begin("Hello, world!");
+		ImGui::Begin("Tools");
 		ImGui::Text("Particles");
-		// ImGui::SliderFloat("speed", &particle.emission_speed, 0.0, 1);
+		ImGui::SliderFloat("speed", &particle.emission_speed, 0.0, 1);
 		// // ImGui::SliderInt("numbers", &particle.instanciated_particles_number, 1, 50);
-		ImGui::SliderFloat("size", &particle.quad.scale, -10, 10);
+		// ImGui::SliderFloat("size", &particle.quad.scale, -10, 10);
 		// ImGui::SliderFloat("position x", &particle.quad.position.x, 0.0f, 0.5f);
 		// ImGui::SliderFloat("position y", &particle.quad.position.y, 0.0f, 0.5f);
 		ImGui::End();
@@ -544,13 +585,12 @@ int main(int argc, char* argv[]) {
 		SDL_GetWindowSize(window, &w, &h);
 		glViewport(0, 0, w, h);
 
-		render_scene(map, tile, (tile_size) * 2 - (tile_size), (tile_size) * 2 - (tile_size), camera2d);
+		render_scene(map, tile, (tile_size) * 2 - (tile_size), (tile_size) * 2 - (tile_size), camera2d);		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glStencilFunc(GL_EQUAL, 1, 0XFF);
 		glStencilMask(0x00);
 		render_quad_screen(blood, true, ind);
-
-		playerr.position.x = player.x;
-		playerr.position.y = player.y;
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		if (player.currentAnim == ANIM_IDLE)
 			playerr.texturee.texture_data = player.idle_frames[player.currentFrame];
@@ -579,34 +619,40 @@ int main(int argc, char* argv[]) {
 						if (player.onGround) {
 							player.vy = 10 * JUMP_STRENGTH/((float)SCREEN_HEIGHT/2);
 							player.onGround = false;
-						}						
-						// camera2d.y -= 11;
+						}
 						break;
 					case SDL_SCANCODE_S:
 						break ;
 					case SDL_SCANCODE_D:
-						// camera2d.x -= PLAYER_SPEED * deltaTime;				
 						break;
 					case SDL_SCANCODE_A:					
-						// camera2d.x += PLAYER_SPEED * deltaTime;
+						break;
+					case SDL_SCANCODE_O:
+						blood.scale += 0.1f;							
+						particle.quad.scale += 0.01f;				
 						break;
 					case SDL_SCANCODE_Z:					
-						tile.scale += 0.1;					
-						playerr.scale += 0.1;													
-						blood.scale += 0.1;			
+						tile.global_scale += 0.01f;					
+						playerr.global_scale += 0.01f;
+						blood.global_scale += 0.01f;						
+						particle.quad.global_scale += 0.01f;
 						break;
-					case SDL_SCANCODE_T:
-						bloods[ind++] = {player.x, player.y};
+					case SDL_SCANCODE_T:					
+						pressed = 12.0f;
+						bloods[ind++] = {playerr.position.x - camera2d.x, playerr.position.y - camera2d.y};						
 						glBindBuffer(GL_ARRAY_BUFFER, blood.instance_buffer);
 						glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * ind, &bloods[0], GL_STATIC_DRAW);
 						glEnableVertexAttribArray(2);
 						glBindBuffer(GL_ARRAY_BUFFER, blood.instance_buffer);
 						glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
 						glVertexAttribDivisor(2, 1);
+						glBindBuffer(GL_ARRAY_BUFFER, 0);
 						break;
 					case SDL_SCANCODE_X:
-						tile.scale -= 0.1;										
-						playerr.scale -= 0.1;
+						tile.global_scale -= 0.01f;
+						playerr.global_scale -= 0.01f;
+						blood.global_scale -= 0.01f;
+						particle.quad.global_scale -= 0.01f;
 						break;
 
 					default:
@@ -617,20 +663,29 @@ int main(int argc, char* argv[]) {
 
 		glStencilMask(0x00);
         glStencilFunc(GL_ALWAYS, 0, 0x00);
-		render_quad_screen(playerr);
+		render_quad_screen(playerr);		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		particle.update_particle(playerr.position, deltaTime);
+
 		render_quad_screen(particle.quad, true, particle.instanciated_particles_number);
-
-		glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * particle.instanciated_particles_number, &particle.offset_intsances[0], GL_STATIC_DRAW);
-		glEnableVertexAttribArray(2);
-		glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
-		glVertexAttribDivisor(2, 1);
+		particle.update_particle({player.x, player.y}, deltaTime);
+		for (int i = 0; i < particle.instanciated_particles_number; i++)
+		{
+			tmpblood[i] = particle.offset_intsances[i];
+			tmpblood[i].x += camera2d.x;
+			tmpblood[i].y += camera2d.y;
+			glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vec2_t) * particle.instanciated_particles_number, &tmpblood[0], GL_STATIC_DRAW);
+			glEnableVertexAttribArray(2);
+			glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
+			glVertexAttribDivisor(2, 1);		
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glStencilMask(0xFF);
         glStencilFunc(GL_ALWAYS, 0, 0xFF);
+
 
 		//
 		{
@@ -639,8 +694,9 @@ int main(int argc, char* argv[]) {
 		bool isMoving = false;
 		
 		// // Only allow movement if not dying
-		if (!player.isDying) {
-			if (keystates[SDL_SCANCODE_LEFT] || keystates[SDL_SCANCODE_A]) {
+		if (!player.isDying) 
+		{
+			if (keystates[SDL_SCANCODE_LEFT] || keystates[SDL_SCANCODE_A]) {	
 				nextX -= PLAYER_SPEED/(SCREEN_WIDTH/2) * deltaTime;
 				playerr.uv_side.x = -1;
 				player.facingRight = false;
@@ -661,7 +717,7 @@ int main(int argc, char* argv[]) {
 			}
 			if (nextX < player.x) 
 			{ // Moving left
-				if (!checkWallCollision(nextX + 0.02, player.y, map))
+				if (!checkWallCollision(nextX + 0.02f, player.y, map))
 					player.x = nextX;
 			}
 			player.vy -= GRAVITY/((float)SCREEN_HEIGHT/2);
@@ -669,18 +725,14 @@ int main(int argc, char* argv[]) {
 
 			player.y = nextY;
 			if (player.vy < 0) { // Moving down
-				if (checkWallCollision(player.x, nextY, map) || checkWallCollision(player.x + player.width, nextY, map)) {
+				if (checkWallCollision(player.x + 0.02f, nextY, map)
+				|| checkWallCollision(player.x + player.width, nextY, map)) {
 					// Snap to ground
 					float tileHeight = WALL_SPRITE_X/((float)SCREEN_HEIGHT/2);
 					player.y = (int)((nextY)/tileHeight) * tileHeight + player.height;
 					player.vy = 0;
 					player.onGround = true;
 				}
-			} 
-			else if (player.vy > 0) { // Moving up
-				// if (checkWallCollision(player.x, nextY, map) || checkWallCollision(player.x + player.width - 1, nextY, map)) {
-				// 	player.vy = 0;
-				// }
 			}
 		}
 

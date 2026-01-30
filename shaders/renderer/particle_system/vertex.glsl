@@ -10,20 +10,23 @@ out vec3 p;
 uniform vec2 player_position;
 uniform vec2 mouse_position;
 uniform float rotation_degree;
-uniform float scale;
+uniform float global_scale;
+uniform float relative_scale;
 uniform bool instanced;
 
 void main()
 {
-   float vertex_scale = scale;
+   float vertex_scale = global_scale;
    uvtex = uv;
    p = aPos;
 
-   p.x *= vertex_scale + gl_InstanceID/100;
-   p.y *= vertex_scale + gl_InstanceID/100;
-
-   p.xy += player_position + offset;
-
+   p.xy += player_position;
+   p.x *= relative_scale;
+   p.y *= relative_scale;
+   p.xy -= player_position;
+   p.xy += offset;
+   p.x *= global_scale;
+   p.y *= global_scale;
 
    gl_Position = vec4(p.x, p.y, p.z, 1.0);
 }
