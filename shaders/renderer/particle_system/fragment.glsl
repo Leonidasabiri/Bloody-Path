@@ -19,8 +19,8 @@ void main()
 
     col.w *= opacity;
 
-    if (uvtex.x <= 0.02 || uvtex.y <= 0.02 || uvtex.x >= 0.99|| uvtex.y >= 0.99) 
-        col = vec4(0., 1., 0., 1.);
+    // if (uvtex.x <= 0.02 || uvtex.y <= 0.02 || uvtex.x >= 0.99|| uvtex.y >= 0.99) 
+    //     col = vec4(0., 1., 0., 1.);
 
     FragColor =  vec4(col.xyzw);
 }

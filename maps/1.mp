@@ -9,6 +9,6 @@ W...W...................W
 W....W..................W
 WWW...W.................W
 W....W.W.........W......W
-W...W...W......WWW.....WW
-W..W.....W....WWWW......W
+W...W...W......WWWW....WW
+W..W.....W....WWWWWW....W
 WWWWWWWWWWWWWWWWWWWWWWWWW

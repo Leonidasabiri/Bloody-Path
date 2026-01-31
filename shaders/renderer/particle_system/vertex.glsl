@@ -21,8 +21,8 @@ void main()
    p = aPos;
 
    p.xy += player_position;
-   p.x *= relative_scale;
-   p.y *= relative_scale;
+   p.x *= relative_scale*gl_InstanceID/100;
+   p.y *= relative_scale*gl_InstanceID/100;
    p.xy -= player_position;
    p.xy += offset;
    p.x *= global_scale;

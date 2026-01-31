@@ -54,19 +54,29 @@ void particle_t::initiate_particle(vec2_t p)
 	for (int i = 0; i < instanciated_particles_number; i++)
 	{
         offset_intsances[i] = {0.0f, i * 0.01f};
+        particle_delay[i] = 0.4f * i;
+        particle_gravity[i] = 0.002f;
     }
 }
 
 void particle_t::update_particle(vec2_t p, float delta_time)
 {
-    float g = 0.01f;
+    float g = 0.002f;
     for (int i = 0; i < instanciated_particles_number; i++)
 	{
-		offset_intsances[i].y += 0.002 * emission_speed;
-        if (offset_intsances[i].y > 0.9)
+		offset_intsances[i].y += particle_gravity[i] * emission_speed;
+		offset_intsances[i].x += (velocity.x + ((float)rand()/RAND_MAX)/100) * emission_speed;
+        if (particle_delay[i] < 0.0f)
         {
             offset_intsances[i] = {p.x, p.y};
+            particle_delay[i] = 0.4f * (instanciated_particles_number - i);
+            particle_gravity[i] = 0.002f;
         }
+        else
+        {
+            particle_delay[i] -= 0.1f;
+        }
+        particle_gravity[i] -= 0.0001f;
 	}
 }
 
@@ -340,7 +350,6 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);    
 	else
     {
-        // glUniform1f(rotation_degree, 30);
         glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);    
     }
 }

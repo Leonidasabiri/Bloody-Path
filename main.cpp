@@ -493,6 +493,7 @@ int main(int argc, char* argv[]) {
 		"shaders/renderer/particle_system/vertex.glsl", tiles_sprite, tiles_sprite_w, tiles_sprite_h,
 		{100, 200}, {200, 300});
 		
+	particle.velocity = {0.004f, 0.0f};
 	particle.instanciated_particles_number = 100;
 	particle.quad.texturee.texture_data = blood_tex.texture_data;
 	particle.quad.texturee.texture_width = blood_tex.texture_width;
@@ -504,7 +505,7 @@ int main(int argc, char* argv[]) {
 	particle.quad.opacity = 0.6;
 	particle.quad.position = {0.0f, 0.0f};
 
-	particle.initiate_particle({player.x, player.y});
+	particle.initiate_particle({0.0f, 0.0f});
 
 	glGenBuffers(1, &particle.quad.instance_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, particle.quad.instance_buffer);
@@ -566,6 +567,7 @@ int main(int argc, char* argv[]) {
 		ImGui::Begin("Tools");
 		ImGui::Text("Particles");
 		ImGui::SliderFloat("speed", &particle.emission_speed, 0.0, 1);
+		ImGui::SliderFloat("velocity x:", &particle.velocity.x, -0.1, 0.1);
 		// // ImGui::SliderInt("numbers", &particle.instanciated_particles_number, 1, 50);
 		// ImGui::SliderFloat("size", &particle.quad.scale, -10, 10);
 		// ImGui::SliderFloat("position x", &particle.quad.position.x, 0.0f, 0.5f);

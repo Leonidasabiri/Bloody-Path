@@ -80,6 +80,8 @@ struct particle_t
     vec2_t           start_position;
     vec2_t           velocity;
     vec2_t           offset_intsances[1000];
+    float            particle_delay[1000];
+    float            particle_gravity[1000];
     float            emission_speed;
     float            size;
     float            force;
