@@ -19,7 +19,12 @@ void main()
    uvtex = uv;
    p = aPos;
 
+   float local_scale = relative_scale;
+
+   p.x *= local_scale;
+   p.y *= local_scale;
    p.xy += player_position;
+   p.xy -= offset;
    p.x *= global_scale;
    p.y *= global_scale;
 

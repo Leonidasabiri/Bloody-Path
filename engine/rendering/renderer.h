@@ -91,6 +91,7 @@ struct particle_t
     int              instanciated_particles_number;
     void             initiate_particle(vec2_t);
     void             update_particle(vec2_t, float);
+    bool             particles_done;
 };
 
 void draw_pixel(int x, int y, color_t color, unsigned char* pixels);
@@ -99,10 +100,9 @@ void info_log_shader(GLuint id);
 window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned char* data, 
                             int w, int h, vec2_t width, vec2_t height);
 window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_process);
-
 void render_quad(window_canvas_t quad);
 
-void render_quad_screen(window_canvas_t canvas_quad, bool instanced = 0, int count = 0, void *data = 0);
+void render_quad_screen(window_canvas_t canvas_quad, int w, int h, bool instanced = 0, int count = 0, void *data = 0);
 void render_quad_post_processing(window_canvas_t canvas_quad);
 
 #endif

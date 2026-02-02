@@ -1,5 +1,4 @@
 
-
 #include <SDL.h>
 #include <SDL_opengl.h>
 #include "player.h"

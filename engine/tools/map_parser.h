@@ -1,6 +1,8 @@
 #ifndef MAP_PARSER_H
 #define MAP_PARSER_H
 
+#include "../../config.h"
+
 #include "../rendering/renderer.h"
 
 // Represents the different types of tiles after parsing
@@ -113,8 +115,12 @@ void resetCheckpoints(Map* map);
  * @param playerY Player's Y position in grid coordinates.
  * @return true if the player reached the exit, false otherwise.
  */
-bool checkExitCollision(Map* map, int playerX, int playerY);
 void collectCheckpoints(Map* map);
 void findExit(Map* map);
+void findPlayerStart(Map* map, Player* player);
+bool checkWallCollision(float x, float y, Map* map);
+bool checkExitCollision(Map* map, int playerX, int playerY);
+bool checkSpikeCollision(Player* player, Map* map);
+bool checkExitCollisionLocal(Player* player, Map* map);
 
 #endif // MAP_PARSER_H

@@ -53,7 +53,9 @@ void particle_t::initiate_particle(vec2_t p)
 {
 	for (int i = 0; i < instanciated_particles_number; i++)
 	{
-        offset_intsances[i] = {0.0f, i * 0.01f};
+        offset_intsances[i] = p;        
+		offset_intsances[i].y += particle_gravity[i] * emission_speed;
+		offset_intsances[i].x += (velocity.x + ((float)rand()/RAND_MAX)/100) * emission_speed;
         particle_delay[i] = 0.4f * i;
         particle_gravity[i] = 0.002f;
     }
@@ -153,12 +155,18 @@ void info_log_shader(GLuint id)
     }
 }
 
-window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned char* data, int w, int h, vec2_t width, vec2_t height)
+window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned char* data,
+         int w, int h, vec2_t width, vec2_t height)
 {
     // [MOUNIR]: Opengl by default works with ndc so playing on the range [-1, 1] would always be mapped to the window borders
     window_canvas_t canvas;
 
     canvas.opacity = 1;
+    canvas.scale = 1;
+    canvas.global_scale = 1;
+    canvas.texturee.texture_data = data;
+    canvas.texturee.texture_width = w;
+    canvas.texturee.texture_height = h;
  
     float x = (float)SCREEN_WIDTH/2 - (width.x + (width.y - width.x)/2);
     float y = (float)SCREEN_HEIGHT/2 - (height.x + (height.y - height.x)/2);
@@ -282,7 +290,6 @@ window_canvas_t window_quad(const char* fragment, const char* vertex, unsigned c
     return canvas;
 }
 
-
 window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_process)
 {
     // [MOUNIR]: setuping the render pass here
@@ -298,24 +305,14 @@ window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_p
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvas.frame_buffer_texture, 0);
-
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        printf("Error creating framebuffer\n");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    canvas.post_process_shader = shader(post_process, FRAGEMENT).shader_id;
-
-    canvas.post_process_shader_program = glCreateProgram();
     glAttachShader(canvas.post_process_shader_program, canvas.vertex_shader);
     glAttachShader(canvas.post_process_shader_program, canvas.post_process_shader);
     glLinkProgram(canvas.post_process_shader_program);
 
-    info_log_shader(canvas.post_process_shader_program);
-
     return canvas;
 }
 
-void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, void* data)
+void render_quad_screen(window_canvas_t canvas_quad, int w, int h, bool instanced, int count, void* data)
 {
     glUseProgram(canvas_quad.shader_program);
     glBindTexture(GL_TEXTURE_2D, canvas_quad.texture);
@@ -333,16 +330,16 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, 
     GLint instanced_r = glGetUniformLocation(canvas_quad.shader_program, "instanced");
     GLint resolution = glGetUniformLocation(canvas_quad.shader_program, "resolution");
 
+    glUniform1f(global_scale, canvas_quad.global_scale);
     glUniform2f(player_position, canvas_quad.position.x, canvas_quad.position.y);
     glUniform2f(uv_side, canvas_quad.uv_side.x, canvas_quad.uv_side.y);
     glUniform2f(mouse_position, (float)canvas_quad.mousex/((float)SCREEN_WIDTH/2),
                                (float)canvas_quad.mousey/((float)SCREEN_HEIGHT/2));
-    glUniform1f(global_scale, canvas_quad.global_scale);
     glUniform1f(relative_scale, canvas_quad.scale);
     glUniform1f(rotation_degree, 0);
     glUniform1f(opacity, canvas_quad.opacity);
     glUniform1f(instanced_r, instanced);
-    glUniform2f(resolution, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glUniform2f(resolution, w, h);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(canvas_quad.vertex_array);    
 	glBindBuffer(GL_ARRAY_BUFFER, canvas_quad.vertex_buffer);
@@ -350,8 +347,8 @@ void render_quad_screen(window_canvas_t canvas_quad, bool instanced, int count, 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);    
 	else
     {
-        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);    
-    }
+        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, count);
+    }    
 }
 
 void render_quad_post_processing(window_canvas_t canvas_quad)

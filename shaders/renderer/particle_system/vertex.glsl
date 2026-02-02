@@ -13,6 +13,7 @@ uniform float rotation_degree;
 uniform float global_scale;
 uniform float relative_scale;
 uniform bool instanced;
+uniform bool size_id;
 
 void main()
 {
@@ -21,8 +22,13 @@ void main()
    p = aPos;
 
    p.xy += player_position;
-   p.x *= relative_scale*gl_InstanceID/100;
-   p.y *= relative_scale*gl_InstanceID/100;
+   float local_scale = relative_scale;
+
+   if (size_id) 
+      local_scale *= gl_InstanceID/50;
+
+   p.x *= local_scale;
+   p.y *= local_scale;
    p.xy -= player_position;
    p.xy += offset;
    p.x *= global_scale;
