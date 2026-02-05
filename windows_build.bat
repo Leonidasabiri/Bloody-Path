@@ -13,4 +13,4 @@ link main.obj map_parser.obj renderer.obj player.obj imgui_tables.obj imgui_widg
     SDL2main.lib SDL2.lib Shell32.lib glew32.lib glew32s.lib opengl32.lib OpenAL32.lib^
     /OUT:Bloody-Path.exe
 
-Bloody-Path.exe
+@REM Bloody-Path.exe

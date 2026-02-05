@@ -17,6 +17,7 @@ typedef struct {
     float x, y;
     float width, height;
     float vy; // Vertical velocity
+    float vx; // Vertical velocity
     bool onGround;
     bool touchedSpike; // Flag to track if player has touched a spike
     float checkpointX; // X coordinate of last checkpoint

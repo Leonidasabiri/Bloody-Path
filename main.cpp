@@ -120,6 +120,7 @@ void render_scene(Map *map, window_canvas_t quad, float w, float h, vec2_t offse
 						glStencilMask(0xFF);
 					else
 						glStencilMask(0x0);
+					setup_quad_screen(quad);
 					render_quad_screen(quad, 0, 0);
 				}
 			}
@@ -503,6 +504,7 @@ int main(int argc, char* argv[]) {
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+		setup_quad_screen(back_ground);
 		render_quad_screen(back_ground, 0, 0);	
 
 		glStencilFunc(GL_ALWAYS, 1, 0XFF);
@@ -578,23 +580,22 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
-
-		glStencilMask(0x00);
-        glStencilFunc(GL_ALWAYS, 0, 0x00);
-		render_quad_screen(playerr, w, h);
-		render_quad_screen(screen_space, w, h);
-
-	    GLint res = glGetUniformLocation(screen_space.shader_program, "resolution");
-	    GLint player_position = glGetUniformLocation(screen_space.shader_program, "player_position");
-	    GLint space_size = glGetUniformLocation(screen_space.shader_program, "space_size");
-	    GLint time_distort = glGetUniformLocation(screen_space.shader_program, "time");
-
+		static float fog = 30.0f;
 		static float tt = 0.0f;
 		tt += 0.01f;
 
-		glUniform1f(space_size, 0.7f);
-		glUniform1f(time_distort, 2.0f);
-		glUniform2f(player_position, playerr.position.x + 0.5,playerr.position.y);
+		bool isMoving = false;
+
+		glStencilMask(0x00);
+        glStencilFunc(GL_ALWAYS, 0, 0x00);
+		setup_quad_screen(playerr);
+		render_quad_screen(playerr, w, h);
+		setup_quad_screen(screen_space);
+		shader_float_value(screen_space.shader_program, 0.6f, "space_size");
+		shader_float_value(screen_space.shader_program, tt, "time");
+		shader_float2_value(screen_space.shader_program, (tmp.x - camera2d.x), -(tmp.y - camera2d.y), "player_velocity");
+		render_quad_screen(screen_space, w, h);
+
 
 		particle.update_particle({player.x, player.y}, deltaTime);
 		for (int i = 0; i < particle.instanciated_particles_number; i++)
@@ -613,9 +614,10 @@ int main(int argc, char* argv[]) {
 		}
 
 		{
+			setup_quad_screen(particle.quad);
 			// render_quad_screen(particle.quad, 0, 0, true, particle.instanciated_particles_number);
-			// GLint size_id = glGetUniformLocation(particle.quad.shader_program, "size_id");
-			// glUniform1i(size_id, 1);
+			GLint size_id = glGetUniformLocation(particle.quad.shader_program, "size_id");
+			glUniform1i(size_id, 1);
 		}
 
 		glStencilFunc(GL_EQUAL, 1, 0XFF);
@@ -633,6 +635,7 @@ int main(int argc, char* argv[]) {
 			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void*)0);
 			glVertexAttribDivisor(2, 1);
 		}
+		setup_quad_screen(blood);
 		render_quad_screen(blood, 0, 0, true, ind);
 
         glStencilMask(0xFF);
@@ -642,7 +645,6 @@ int main(int argc, char* argv[]) {
 		{
 		// --- Horizontal Movement ---
 		float nextX = player.x; 
-		bool isMoving = false;
 
 		deltaTime = (SDL_GetTicks() - currentTime)/1000;
 		currentTime = SDL_GetTicks();

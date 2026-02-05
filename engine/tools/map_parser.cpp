@@ -296,7 +296,7 @@ bool checkExitCollision(Map* map, int playerX, int playerY) {
     return false;
 }
 
-void findPlayerStart(Map* map, Player* player) 
+void findPlayerStart(Map* map, Player* player)
 {
     if (!map || !player) return;
     float tileWidth = WALL_SPRITE_X;

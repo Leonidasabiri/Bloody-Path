@@ -312,7 +312,26 @@ window_canvas_t window_quad_multipass(window_canvas_t canvas, const char* post_p
     return canvas;
 }
 
-void render_quad_screen(window_canvas_t canvas_quad, int w, int h, bool instanced, int count, void* data)
+void    shader_int_value(GLuint shader_program, int value, const char* uniform)
+{
+    GLint uniform_location = glGetUniformLocation(shader_program, uniform);    
+    glUniform1i(uniform_location, value);
+}
+
+void    shader_float_value(GLuint shader_program,float value, const char* uniform)
+{
+    GLint uniform_location = glGetUniformLocation(shader_program, uniform);    
+    glUniform1f(uniform_location, value);
+}
+
+void    shader_float2_value(GLuint shader_program, float value1, float value2, const char* uniform)
+{
+    GLint uniform_location = glGetUniformLocation(shader_program, uniform);    
+    glUniform2f(uniform_location, value1, value2);
+}
+
+
+void setup_quad_screen(window_canvas_t canvas_quad)
 {
     glUseProgram(canvas_quad.shader_program);
     glBindTexture(GL_TEXTURE_2D, canvas_quad.texture);
@@ -320,6 +339,10 @@ void render_quad_screen(window_canvas_t canvas_quad, int w, int h, bool instance
                             canvas_quad.texturee.texture_width, 
                             canvas_quad.texturee.texture_height, 0, 
                             GL_RGBA, GL_UNSIGNED_BYTE, canvas_quad.texturee.texture_data);
+}
+
+void render_quad_screen(window_canvas_t canvas_quad, int w, int h, bool instanced, int count, void* data)
+{
     GLint player_position = glGetUniformLocation(canvas_quad.shader_program, "player_position");
     GLint rotation_degree = glGetUniformLocation(canvas_quad.shader_program, "rotation_degree");
     GLint uv_side = glGetUniformLocation(canvas_quad.shader_program, "uv_side");
