@@ -50,6 +50,9 @@ Example scene of how the game may look
 
 ![WhatsApp Image 2026-01-31 at 6 31 46 PM](https://github.com/user-attachments/assets/824ebe73-3b3a-43f5-92ec-4b7cc23cd586)
 
+Game poster
+
+<img width="500" height="500" alt="gamelogo" src="https://github.com/user-attachments/assets/f594903a-e7b2-453c-ab03-48541c5c0abe" />
 
 *insert more art here a mounir...*
 
