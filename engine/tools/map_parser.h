@@ -1,8 +1,8 @@
 #ifndef MAP_PARSER_H
 #define MAP_PARSER_H
 
+#include "sprite_sampler.h"
 #include "../../config.h"
-
 #include "../rendering/renderer.h"
 
 // Represents the different types of tiles after parsing
@@ -87,18 +87,7 @@ Map* loadMap(const char* filename);
  */
 void destroyMap(Map* map);
 
-/**
- * @brief Checks if the player is colliding with any checkpoint and activates it.
- * Updates player's checkpoint coordinates if a new checkpoint is touched.
- * 
- * @param map The game map containing checkpoints.
- * @param playerX Player's X position in grid coordinates.
- * @param playerY Player's Y position in grid coordinates.
- * @param checkpointX Pointer to store the checkpoint X coordinate.
- * @param checkpointY Pointer to store the checkpoint Y coordinate.
- * @return true if a new checkpoint was activated, false otherwise.
- */
-bool checkCheckpointCollision(Map* map, int playerX, int playerY, float* checkpointX, float* checkpointY);
+bool checkCheckpointCollision(Map* map, float playerX, float playerY, float* checkpointX, float* checkpointY);
 
 /**
  * @brief Resets all checkpoints in the map to inactive state.
@@ -117,10 +106,5 @@ void resetCheckpoints(Map* map);
  */
 void collectCheckpoints(Map* map);
 void findExit(Map* map);
-void findPlayerStart(Map* map, Player* player);
-bool checkWallCollision(float x, float y, Map* map);
-bool checkExitCollision(Map* map, int playerX, int playerY);
-bool checkSpikeCollision(Player* player, Map* map);
-bool checkExitCollisionLocal(Player* player, Map* map);
 
 #endif // MAP_PARSER_H

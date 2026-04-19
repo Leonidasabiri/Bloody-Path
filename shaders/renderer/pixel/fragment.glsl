@@ -28,6 +28,9 @@ void main()
 
     col.w *= opacity;
 
+    if (col.a == 0.0)
+        discard;
+
     // if (uvtex.x <= 0.02 || uvtex.y <= 0.02 || uvtex.x >= 0.99|| uvtex.y >= 0.99) 
     //     col = vec4(0., 1., 0., 1.);
 

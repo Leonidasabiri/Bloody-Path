@@ -24,9 +24,6 @@ void main()
    p.xy += player_position;
    float local_scale = relative_scale;
 
-   if (size_id) 
-      local_scale *= gl_InstanceID/50;
-
    p.x *= local_scale;
    p.y *= local_scale;
    p.xy -= player_position;

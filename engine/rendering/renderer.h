@@ -10,7 +10,6 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
-#include "../player/player.h"
 #include "../../tinyutils.h"
 
 enum windowmode_t
@@ -110,5 +109,6 @@ void render_quad(window_canvas_t quad);
 void setup_quad_screen(window_canvas_t canvas_quad);
 void render_quad_screen(window_canvas_t canvas_quad, int w, int h, bool instanced = 0, int count = 0, void *data = 0);
 void render_quad_post_processing(window_canvas_t canvas_quad);
+void create_instance(window_canvas_t quad, GLsizeiptr size_of_data, const void* data, int count);
 
 #endif

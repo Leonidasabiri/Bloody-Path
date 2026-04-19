@@ -27,7 +27,6 @@ vec2_t vec2_t::normalize_vector()
     return { x / length, y / length};
 }
 
-
 vec2_t vec2_t::operator+(vec2_t &v1)
 {
     vec2_t res = {this->x + v1.x, this->y + v1.y};
@@ -51,23 +50,22 @@ vec2_t vec2_t::operator-(vec2_t &v1)
 
 void particle_t::initiate_particle(vec2_t p)
 {
-	for (int i = 0; i < instanciated_particles_number; i++)
-	{
-        offset_intsances[i] = p;        
-		offset_intsances[i].y += particle_gravity[i] * emission_speed;
-		offset_intsances[i].x += (velocity.x + ((float)rand()/RAND_MAX)/100) * emission_speed;
+    for (int i = 0; i < instanciated_particles_number; i++)
+	{       
         particle_delay[i] = 0.4f * i;
+        offset_intsances[i] = p;
         particle_gravity[i] = 0.002f;
+		offset_intsances[i].y += particle_gravity[i] * emission_speed + 0.01f * i;
+        offset_intsances[i].x += velocity.x * emission_speed * i;
     }
 }
 
 void particle_t::update_particle(vec2_t p, float delta_time)
 {
-    float g = 0.002f;
     for (int i = 0; i < instanciated_particles_number; i++)
 	{
 		offset_intsances[i].y += particle_gravity[i] * emission_speed;
-		offset_intsances[i].x += (velocity.x + ((float)rand()/RAND_MAX)/100) * emission_speed;
+		offset_intsances[i].x += velocity.x * emission_speed;
         if (particle_delay[i] < 0.0f)
         {
             offset_intsances[i] = {p.x, p.y};
@@ -75,10 +73,8 @@ void particle_t::update_particle(vec2_t p, float delta_time)
             particle_gravity[i] = 0.002f;
         }
         else
-        {
             particle_delay[i] -= 0.1f;
-        }
-        particle_gravity[i] -= 0.0001f;
+        particle_gravity[i] -= 0.001f;
 	}
 }
 
@@ -382,3 +378,13 @@ void render_quad_post_processing(window_canvas_t canvas_quad)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
+void create_instance(window_canvas_t quad, GLsizeiptr size_of_data, const void* data, int count)
+{
+	glBindVertexArray(quad.vertex_array);
+	glBindBuffer(GL_ARRAY_BUFFER, quad.instance_buffer);
+	glBufferData(GL_ARRAY_BUFFER, size_of_data * count, data, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER, quad.instance_buffer);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of_data, (void*)0);
+	glVertexAttribDivisor(2, 1);
+}

@@ -179,6 +179,8 @@ static void analyzeMap(Map* map) {
                     map->tile_types[y][x] = TILE_WALL_TOP_LEFT_CORNER;
                 if (x <= 0 && y >= map->height)
                     map->tile_types[y][x] = TILE_WALL_BOTTOM_LEFT_CORNER;
+                if (x > 0 && north)
+                    map->tile_types[y][x] = TILE_WALL_BOTTOM_EDGE;
             }
         }
     }
@@ -228,23 +230,29 @@ void collectCheckpoints(Map* map) {
 }
 
 // --- Checkpoint Management Functions ---
-bool checkCheckpointCollision(Map* map, int playerX, int playerY, float* checkpointX, float* checkpointY) {
+bool checkCheckpointCollision(Map* map, float playerX, float playerY, float* checkpointX, float* checkpointY) {
     if (!map || !map->checkpoints || map->checkpointCount == 0) {
         return false;
     }
+    
+    float tileWidth  = (float)WALL_SPRITE_X/((float)SCREEN_WIDTH/2);
+    float tileHeight = (float)WALL_SPRITE_X/((float)SCREEN_HEIGHT/2);
 
+    int mapX = (int)(playerX/tileWidth);
+    int mapY = map->height - (int)(playerY/tileHeight);
 
     for (int i = 0; i < map->checkpointCount; i++) {
         Checkpoint* cp = &map->checkpoints[i];
         
         // Check if player is on this checkpoint tile
-        if (cp->x == playerX && cp->y == playerY) {
-            if (!cp->activated) {
+        if (cp->x == mapX && cp->y == mapY) {
+            if (!cp->activated) 
+            {
                 // New checkpoint activated!
                 cp->activated = true;
-                *checkpointX = (float)cp->x;
-                *checkpointY = (float)cp->y;
-                printf("Checkpoint activated at (%d, %d)\n", cp->x, cp->y);
+                *checkpointX = (float)cp->x * tileWidth;
+                *checkpointY = (map->height - (float)cp->y) * tileHeight;
+                printf("Checkpoint activated at (%f, %f)\n", *checkpointX, *checkpointY);
                 return true;
             }
         }
@@ -296,108 +304,4 @@ bool checkExitCollision(Map* map, int playerX, int playerY) {
     return false;
 }
 
-void findPlayerStart(Map* map, Player* player)
-{
-    if (!map || !player) return;
-    float tileWidth = WALL_SPRITE_X;
-    float tileHeight = WALL_SPRITE_X;
-
-    for (int y = 0; y < map->height; ++y) {
-        for (int x = 0; x < map->width; ++x) {
-            if (map->data[y][x] == 'P') {
-                player->x = x * (WALL_SPRITE_X/((float)SCREEN_WIDTH/2));
-                player->y = (map->height - y) * WALL_SPRITE_X/((float)SCREEN_HEIGHT/2);
-                player->width = (WALL_SPRITE_X-10)/((float)SCREEN_WIDTH/2);
-                player->height = (WALL_SPRITE_X)/((float)SCREEN_HEIGHT/2);
-                player->vy = 0;
-                player->onGround = false;
-                player->checkpointX = (float)x;
-                player->checkpointY = (float)y;
-                return;
-            }
-        }
-    }
-    player->x = SCREEN_WIDTH/2;
-    player->y = SCREEN_HEIGHT/2;
-    player->width = WALL_SPRITE_X/2;
-    player->height = WALL_SPRITE_X;
-    player->vy = 0;
-    player->onGround = false;
-    player->checkpointX = player->x / WALL_SPRITE_X;
-    player->checkpointY = player->y / WALL_SPRITE_X;
-}
-
-bool checkWallCollision(float x, float y, Map* map) 
-{
-    if (!map) return true; // Treat no map as a solid wall
-
-    float tileWidth = (float)WALL_SPRITE_X/((float)SCREEN_WIDTH/2);
-    float tileHeight = (float)WALL_SPRITE_X/((float)SCREEN_HEIGHT/2);
-
-    int mapX = (int)(x/tileWidth);
-    int mapY = map->height - (int)(y/tileHeight);
-
-    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
-        return true; // Collide with boundaries
-    }
-
-    char tile = map->data[mapY][mapX];
-    return tile == 'W' || tile == '#';
-}
-
-bool checkSpikeCollision(Player* player, Map* map) 
-{
-    if (!map) return false;
-
-    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
-    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
-
-    // Get player center
-    float playerCenterX = player->x + player->width / 2;
-    float playerCenterY = player->y + player->height / 2;
-
-    int mapX = (int)(playerCenterX / tileWidth);
-    int mapY = (int)(playerCenterY / tileHeight);
-
-    if (mapX < 0 || mapX >= map->width || mapY < 0 || mapY >= map->height) {
-        return false;
-    }
-
-    if (map->tile_types[mapY][mapX] == TILE_SPIKE || map->tile_types[mapY][mapX] == TILE_SPIKE_BLOODY)
-    {
-        map->tile_types[mapY][mapX] = TILE_SPIKE_BLOODY;
-    }
-    return map->tile_types[mapY][mapX] == TILE_SPIKE_BLOODY;
-}
-
-bool checkExitCollisionLocal(Player* player, Map* map)
-{
-    if (!map) return false;
-
-    float tileWidth = (float)TEXTURE_DEMENSIONS / map->width;
-    float tileHeight = (float)TEXTURE_DEMENSIONS / map->height;
-
-    // Check if ANY part of the player overlaps with the exit tile
-    // Calculate which tiles the player occupies
-    // Add a small tolerance (2 pixels) to account for wall collision blocking
-    float tolerance = 2.0f;
-    int leftTile = (int)(player->x / tileWidth);
-    int rightTile = (int)((player->x + player->width + tolerance) / tileWidth);
-    int topTile = (int)(player->y / tileHeight);
-    int bottomTile = (int)((player->y + player->height - 1) / tileHeight);
-    
-    // Check all tiles the player overlaps with (or is very close to)
-    for (int y = topTile; y <= bottomTile; y++) {
-        for (int x = leftTile; x <= rightTile; x++) {
-            if (x >= 0 && x < map->width && y >= 0 && y < map->height) {
-                if (map->tile_types[y][x] == TILE_EXIT) {
-                    printf("Exit collision detected! Player overlapping exit at grid (%d, %d)\n", x, y);
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
-}
 
