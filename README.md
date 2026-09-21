@@ -1,4 +1,6 @@
 
+# State : (Unfinished prototype to be redone entirely)
+
 # TO DO:
  - [ ] Make character controller
  - [ ] Make basic bounding boxes collision detecion
